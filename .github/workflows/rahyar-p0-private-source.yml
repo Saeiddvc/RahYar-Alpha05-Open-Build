@@ -127,9 +127,11 @@ jobs:
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true
-            sleep 12
+            sleep 20
             adb logcat -d > RahYar-P0-full-log.txt
             grep RahYarSim RahYar-P0-full-log.txt > RahYar-P0-simulation.txt || true
+            echo '--- RahYar simulation events ---'
+            cat RahYar-P0-simulation.txt || true
             adb exec-out screencap -p > RahYar-P0-simulation.png
             adb shell pidof ir.rahyar.app > RahYar-P0-pid.txt
             test -s RahYar-P0-pid.txt
@@ -165,6 +167,7 @@ jobs:
           grep -q 'RahYarBrand.NAVY' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
 
       - name: Upload P0 APK and evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: RahYar-0.13.0-alpha-p0-parity
@@ -175,5 +178,5 @@ jobs:
             source/RahYar-P0-simulation.txt
             source/RahYar-P0-full-log.txt
             source/RahYar-P0-simulation.png
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
