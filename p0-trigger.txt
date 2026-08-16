@@ -1,4 +1,4 @@
 RahYar P0 build trigger
 Source: Saeiddvc/SaeidNavigator-Android@feature/rahyar-p0-product-core
 Triggered: 2026-08-16
-Purpose: final Neshan-parity baseline + icon polish + robust overview validation
+Purpose: strict local search + waypoint crash hardening + richer driving map
