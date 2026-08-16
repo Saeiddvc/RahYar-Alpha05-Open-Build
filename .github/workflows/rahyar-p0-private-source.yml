@@ -63,7 +63,10 @@ jobs:
           test -s branding/source/RahYar_Logo_Primary.svg
           test -s branding/RahYar_Brand_Guide.md
           test -s branding/Brand-Implementation-Note.md
+          test -s docs/RAHYAR_NESHAN_PARITY_BASELINE_LOCK.md
+          test -s tools/apply_rahyar_neshan_parity.py
           test -s tools/apply_rahyar_brand_runtime.py
+          test -s app/src/main/java/ir/rahyar/app/RahYarPinnedPointStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSavedRouteStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSmartRestController.java
           test -s app/src/main/java/ir/rahyar/app/RahYarWaypointSession.java
@@ -71,6 +74,10 @@ jobs:
           test -s app/src/main/java/ir/rahyar/app/RahYarTripStoryActivity.java
           test -s app/src/main/java/ir/rahyar/app/RahYarHudActivity.java
           ! grep -Rqi 'Organic Maps' app/src/main/AndroidManifest.xml app/src/main/java/ir/rahyar/app || exit 9
+
+      - name: Apply Neshan-parity baseline interactions
+        working-directory: source
+        run: python tools/apply_rahyar_neshan_parity.py
 
       - name: Apply locked RahYar runtime brand and legacy compatibility
         working-directory: source
@@ -131,7 +138,7 @@ jobs:
             grep -q 'COMPLETE' RahYar-P0-simulation.txt
             if grep -q 'FAIL' RahYar-P0-simulation.txt; then exit 11; fi
 
-      - name: Gate P0 compiled features and runtime brand
+      - name: Gate P0 compiled features brand and Neshan parity
         working-directory: source
         run: |
           set -euo pipefail
@@ -141,6 +148,12 @@ jobs:
           grep -q 'RahYarHudActivity.class' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarTripStoryActivity.class' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'updateTrip' app/src/main/java/ir/rahyar/app/RahYarV1CarAppService.java
+          grep -q 'addOnMapLongClickListener' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'RahYarPinnedPointStore.save' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'selectRouteCandidate' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'addRouteEndpoints' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'overviewLocked' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'showLayerPanel' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'HUD' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'RahYarBrand.TURQUOISE' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarBrand.NAVY' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
@@ -148,7 +161,7 @@ jobs:
       - name: Upload P0 APK and evidence
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.13.0-alpha-p0
+          name: RahYar-0.13.0-alpha-p0-parity
           path: |
             source/RahYar-0.13.0-alpha-p0.apk
             source/RahYar-0.13.0-alpha-p0.sha256
