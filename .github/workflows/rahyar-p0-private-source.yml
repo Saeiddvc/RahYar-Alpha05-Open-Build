@@ -67,6 +67,7 @@ jobs:
           test -s tools/apply_rahyar_neshan_parity.py
           test -s tools/apply_rahyar_brand_runtime.py
           test -s tools/apply_rahyar_icon_polish.py
+          test -s tools/apply_rahyar_search_waypoint_stability.py
           test -s app/src/main/java/ir/rahyar/app/RahYarPinnedPointStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSavedRouteStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSmartRestController.java
@@ -87,6 +88,10 @@ jobs:
       - name: Apply RahYar icon polish
         working-directory: source
         run: python tools/apply_rahyar_icon_polish.py
+
+      - name: Apply strict local search and waypoint stability
+        working-directory: source
+        run: python tools/apply_rahyar_search_waypoint_stability.py
 
       - name: Build actual RahYar APK
         working-directory: source
@@ -161,6 +166,9 @@ jobs:
           grep -q 'addRouteEndpoints' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'overviewLocked' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'showLayerPanel' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'searchNear(q,location.getLatitude(),location.getLongitude())' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'waypointLoading' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'bounded=1&countrycodes=ir' app/src/main/java/ir/rahyar/app/OpenNavCore.java
           grep -q '2.38f \* u' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'HUD' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'RahYarBrand.TURQUOISE' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
