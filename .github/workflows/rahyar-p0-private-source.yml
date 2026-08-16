@@ -2,6 +2,9 @@ name: RahYar P0 Product Build
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'p0-trigger.txt'
 
 permissions:
   contents: read
