@@ -1,0 +1,135 @@
+name: RahYar Alpha05 Open Field
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/rahyar-alpha05-open.yml'
+      - 'alpha05/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      OM_TAG: 2026.07.23-6-android
+      ANDROID_NDK_VERSION: 29.0.14206865
+    steps:
+      - name: Checkout RahYar overlay
+        uses: actions/checkout@v4
+
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL || true
+          df -h
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android native toolchain
+        shell: bash
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)
+          fi
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;$ANDROID_NDK_VERSION"
+          echo "$ANDROID_HOME/cmake/3.22.1/bin" >> "$GITHUB_PATH"
+
+      - name: Clone Organic Maps engine
+        run: |
+          git clone \
+            --depth=1 \
+            --branch "$OM_TAG" \
+            --recurse-submodules \
+            --shallow-submodules \
+            --filter=blob:limit=128k \
+            https://github.com/organicmaps/organicmaps.git organicmaps
+          cd organicmaps
+          bash ./configure.sh
+
+      - name: Apply RahYar identity and legal attribution
+        shell: bash
+        run: |
+          cd organicmaps
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('android/libs/branding/src/main/res/values/donottranslate.xml')
+          s = p.read_text()
+          s = s.replace('>Organic Maps</string>', '>راه‌یار</string>')
+          p.write_text(s)
+
+          p = Path('android/build.gradle')
+          s = p.read_text()
+          old = "appId = 'app.organicmaps'"
+          new = "appId = 'ir.rahyar.open'"
+          if old not in s:
+              raise SystemExit('Organic Maps appId marker not found')
+          p.write_text(s.replace(old, new))
+
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          old = "~/name='app\\.organicmaps(\\.web)?(\\.debug|\\.beta|\\.profileable)?\\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'/"
+          new = "~/name='(app\\.organicmaps(\\.web)?|ir\\.rahyar\\.open)(\\.debug|\\.beta|\\.profileable)?\\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'/"
+          if old not in s:
+              raise SystemExit('Permission whitelist marker not found; refusing to bypass the checker')
+          s = s.replace(old, new)
+          p.write_text(s)
+          if 'ir\\.rahyar\\.open' not in p.read_text():
+              raise SystemExit('RahYar permission whitelist patch failed')
+          PY
+
+          mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26 android/app/src/main/res/values
+          cp ../alpha05/ic_rahyar_foreground.xml android/app/src/main/res/drawable/ic_rahyar_foreground.xml
+          cp ../alpha05/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp ../alpha05/rahyar_colors.xml android/app/src/main/res/values/rahyar_colors.xml
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/res/values/strings.xml')
+          s = p.read_text()
+          s = s.replace('<string name="about_menu_title">About Organic Maps</string>',
+                        '<string name="about_menu_title">راه‌یار — based on Organic Maps</string>')
+          p.write_text(s)
+          PY
+
+      - name: Configure Android SDK path
+        run: |
+          python3 organicmaps/tools/android/set_up_android.py --sdk "$ANDROID_HOME"
+
+      - name: Build arm64 F-Droid debug APK
+        working-directory: organicmaps/android
+        run: |
+          ./gradlew assembleFdroidDebug -Parm64 -Pnjobs=2 --no-daemon --stacktrace
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          mkdir -p out
+          find organicmaps/android/app/build/outputs/apk -type f -name '*.apk' -print
+          APK=$(find organicmaps/android/app/build/outputs/apk -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" out/RahYar-0.11.0-alpha05-open-arm64.apk
+          sha256sum out/RahYar-0.11.0-alpha05-open-arm64.apk > out/RahYar-0.11.0-alpha05-open-arm64.sha256
+          cat > out/README.txt <<'EOF'
+          RahYar 0.11.0-alpha05-open
+          Field-test build based on Organic Maps open-source code and OpenStreetMap data.
+          No Google Cloud API key or international payment card is required.
+          Organic Maps Project attribution remains visible in the app About screen.
+          This alpha uses upstream map distribution only for evaluation; production RahYar will use an approved/self-hosted map distribution pipeline.
+          EOF
+          ls -lh out
+
+      - name: Upload RahYar Alpha05
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-alpha05-open-arm64
+          path: out/*
+          if-no-files-found: error
+          retention-days: 30
