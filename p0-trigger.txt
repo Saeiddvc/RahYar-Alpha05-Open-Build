@@ -1,4 +1,4 @@
 RahYar P0 build trigger
 Source: Saeiddvc/SaeidNavigator-Android@feature/rahyar-p0-product-core
 Triggered: 2026-08-16
-Purpose: full runtime brand migration + P0 validation
+Purpose: Neshan-parity baseline + RahYar differentiators validation
