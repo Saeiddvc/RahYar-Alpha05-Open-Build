@@ -89,7 +89,7 @@ jobs:
           disable-animations: true
           working-directory: source
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r RahYar-0.13.2-alpha-p0.apk
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
