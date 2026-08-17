@@ -11,7 +11,7 @@ permissions:
 
 env:
   SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
-  SOURCE_REF: feature/rahyar-p0-product-core
+  SOURCE_REF: feature/rahyar-p0-stability-0131
 
 jobs:
   build-and-validate:
@@ -69,7 +69,9 @@ jobs:
           test -s tools/apply_rahyar_icon_polish.py
           test -s tools/apply_rahyar_search_waypoint_stability.py
           test -s tools/apply_rahyar_navigation_motion.py
+          test -s tools/apply_rahyar_field_stability_0131.py
           test -s app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          test -s app/src/main/java/ir/rahyar/app/RahYarLocationStabilityGate.java
           test -s app/src/main/java/ir/rahyar/app/RahYarPuckFactory.java
           test -s app/src/main/java/ir/rahyar/app/RahYarPinnedPointStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSavedRouteStore.java
@@ -104,6 +106,10 @@ jobs:
         working-directory: source
         run: python tools/apply_rahyar_navigation_motion.py
 
+      - name: Apply 0.13.1 field stability UX and map modes
+        working-directory: source
+        run: python tools/apply_rahyar_field_stability_0131.py
+
       - name: Build actual RahYar APK
         working-directory: source
         run: gradle assembleDebug -x prepareRahYarSources --stacktrace
@@ -118,8 +124,9 @@ jobs:
           "$AAPT" dump badging "$APK" > rahyar-badging.txt
           grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
           grep -q "application-label:'راه‌یار'" rahyar-badging.txt
-          sha256sum "$APK" > RahYar-0.13.0-alpha-p0.sha256
-          cp "$APK" RahYar-0.13.0-alpha-p0.apk
+          grep -q 'versionName=.0.13.1-alpha-p0.' rahyar-badging.txt
+          sha256sum "$APK" > RahYar-0.13.1-alpha-p0.sha256
+          cp "$APK" RahYar-0.13.1-alpha-p0.apk
 
       - name: Enable KVM
         run: |
@@ -139,7 +146,7 @@ jobs:
           working-directory: source
           script: |
             set -e
-            adb install -r RahYar-0.13.0-alpha-p0.apk
+            adb install -r RahYar-0.13.1-alpha-p0.apk
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true
@@ -153,6 +160,7 @@ jobs:
             test -s RahYar-P0-pid.txt
             grep -q 'PASS HOME' RahYar-P0-simulation.txt
             grep -q 'PASS SEARCH' RahYar-P0-simulation.txt
+            grep -q 'PASS LONG_PRESS_PIN' RahYar-P0-simulation.txt
             grep -q 'PASS ROUTE_PREVIEW' RahYar-P0-simulation.txt
             grep -q 'PASS NAVIGATION' RahYar-P0-simulation.txt
             grep -q 'PASS WAYPOINT_MENU' RahYar-P0-simulation.txt
@@ -161,10 +169,11 @@ jobs:
             grep -q 'COMPLETE' RahYar-P0-simulation.txt
             if grep -q 'FAIL' RahYar-P0-simulation.txt; then exit 11; fi
 
-      - name: Gate P0 compiled features brand parity and motion
+      - name: Gate P0 compiled features brand parity motion and stability
         working-directory: source
         run: |
           set -euo pipefail
+          grep -q 'versionName = "0.13.1-alpha-p0"' app/build.gradle.kts
           grep -q 'SafetyEngine.begin(route)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarSmartRestController.maybeSuggest' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'showSaveRoutePrompt' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
@@ -172,33 +181,33 @@ jobs:
           grep -q 'RahYarTripStoryActivity.class' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'updateTrip' app/src/main/java/ir/rahyar/app/RahYarV1CarAppService.java
           grep -q 'addOnMapLongClickListener' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'RahYarPinnedPointStore.save' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'selectRouteCandidate' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'addRouteEndpoints' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'overviewLocked' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'showLayerPanel' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'consumePinnedDestination' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'cycleMapMode' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          ! grep -q 'showLayerPanel' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'install3DBuildings' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'World_Imagery/MapServer/tile' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'ProgressBar spinner' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'RahYarLocationStabilityGate' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'locationGate.accept' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'projectToRoute' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          grep -q 'navigationMotion.accept(location,activeRoute' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'searchNear(q,location.getLatitude(),location.getLongitude())' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'waypointLoading' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'bounded=1&countrycodes=ir' app/src/main/java/ir/rahyar/app/OpenNavCore.java
-          grep -q 'navigationMotion.accept' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'renderNavigationMotion' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'addLayerBelow(rl,LOC_HALO_LAYER)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'ValueAnimator' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
-          grep -q 'LinearInterpolator' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
           grep -q 'RahYarBrand.NAVY' app/src/main/java/ir/rahyar/app/RahYarPuckFactory.java
           grep -q '2.38f \* u' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'HUD' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
-          grep -q 'RahYarBrand.TURQUOISE' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'RahYarBrand.NAVY' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
 
       - name: Upload P0 APK and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.13.0-alpha-p0-motion
+          name: RahYar-0.13.1-alpha-p0-stability
           path: |
-            source/RahYar-0.13.0-alpha-p0.apk
-            source/RahYar-0.13.0-alpha-p0.sha256
+            source/RahYar-0.13.1-alpha-p0.apk
+            source/RahYar-0.13.1-alpha-p0.sha256
             source/rahyar-badging.txt
             source/RahYar-P0-simulation.txt
             source/RahYar-P0-full-log.txt
