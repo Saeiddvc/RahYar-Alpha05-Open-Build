@@ -1,0 +1,1 @@
+RahYar 0.13.7 Alpha P0 functional gate v6 with full 18-second simulation evidence window.
