@@ -1,1 +1,1 @@
-RahYar 0.13.7 Alpha P0 functional gate v6 with full 18-second simulation evidence window.
+RahYar 0.13.7 Alpha P0 functional gate v6 retry 2. Report feedback now has deterministic projected map marker plus native layer when available.
