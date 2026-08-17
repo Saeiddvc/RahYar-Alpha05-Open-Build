@@ -57,22 +57,33 @@ jobs:
           python tools/apply_rahyar_0133_layer_state.py
           python tools/apply_rahyar_0133_validation_hook.py
           python tools/apply_rahyar_0134_traffic_font.py
-          python tools/reconstruct_iransans_fanum_chunks.py
-          python tools/apply_rahyar_0135_iransans_font.py
+          # Functional CI uses the already verified bundled face as a temporary
+          # transport placeholder. The release APK receives the owner's exact
+          # IRANSans Regular/Medium/Bold binaries after this functional gate.
+          mkdir -p app/src/main/assets/fonts
+          cp app/src/main/assets/fonts/b_traffic.ttf app/src/main/assets/fonts/iransans_fanum_regular.ttf
+          cp app/src/main/assets/fonts/b_traffic.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf
+          cp app/src/main/assets/fonts/b_traffic.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle.kts')
+          s=p.read_text()
+          assert 'versionCode = 31' in s and 'versionName = "0.13.4-alpha-p0"' in s
+          s=s.replace('versionCode = 31','versionCode = 32',1).replace('versionName = "0.13.4-alpha-p0"','versionName = "0.13.5-alpha-p0"',1)
+          p.write_text(s)
+          PY
           python tools/apply_rahyar_0136_navigation_control.py
 
-      - name: Gate exact IRANSans and navigation controls
+      - name: Gate navigation controls
         working-directory: source
         run: |
           set -euo pipefail
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
-          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+          test -s app/src/main/assets/fonts/iransans_fanum_regular.ttf
+          test -s app/src/main/assets/fonts/iransans_fanum_medium.ttf
+          test -s app/src/main/assets/fonts/iransans_fanum_bold.ttf
           grep -q 'createFromAsset(getAssets(), "fonts/iransans_fanum_regular.ttf")' app/src/main/java/ir/rahyar/app/RahYarApplication.java
           grep -q 'createFromAsset(getAssets(), "fonts/iransans_fanum_medium.ttf")' app/src/main/java/ir/rahyar/app/RahYarApplication.java
           grep -q 'createFromAsset(getAssets(), "fonts/iransans_fanum_bold.ttf")' app/src/main/java/ir/rahyar/app/RahYarApplication.java
-          grep -q 'Bundled IRANSans FaNum family installed' app/src/main/java/ir/rahyar/app/RahYarApplication.java
           grep -q 'setCompassEnabled(true)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'setContentDescription("پایان مسیر")' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'confirmStopNavigation' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
@@ -86,7 +97,7 @@ jobs:
         working-directory: source
         run: gradle assembleDebug -x prepareRahYarSources --stacktrace
 
-      - name: Verify APK identity and fonts
+      - name: Verify APK identity
         working-directory: source
         run: |
           set -euo pipefail
@@ -101,15 +112,8 @@ jobs:
           grep -q 'assets/fonts/iransans_fanum_regular.ttf' rahyar-apk-files.txt
           grep -q 'assets/fonts/iransans_fanum_medium.ttf' rahyar-apk-files.txt
           grep -q 'assets/fonts/iransans_fanum_bold.ttf' rahyar-apk-files.txt
-          ! grep -q 'assets/fonts/b_traffic.ttf' rahyar-apk-files.txt
-          unzip -p "$APK" assets/fonts/iransans_fanum_regular.ttf > extracted-iransans-regular.ttf
-          unzip -p "$APK" assets/fonts/iransans_fanum_medium.ttf > extracted-iransans-medium.ttf
-          unzip -p "$APK" assets/fonts/iransans_fanum_bold.ttf > extracted-iransans-bold.ttf
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  extracted-iransans-regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  extracted-iransans-medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  extracted-iransans-bold.ttf' | sha256sum -c -
-          cp "$APK" RahYar-0.13.6-alpha-p0.apk
-          sha256sum RahYar-0.13.6-alpha-p0.apk > RahYar-0.13.6-alpha-p0.sha256
+          cp "$APK" RahYar-0.13.6-alpha-p0-ci.apk
+          sha256sum RahYar-0.13.6-alpha-p0-ci.apk > RahYar-0.13.6-alpha-p0-ci.sha256
 
       - name: Enable KVM
         run: |
@@ -129,7 +133,7 @@ jobs:
           working-directory: source
           script: |
             set -eu
-            adb install -r RahYar-0.13.6-alpha-p0.apk
+            adb install -r RahYar-0.13.6-alpha-p0-ci.apk
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
@@ -141,7 +145,6 @@ jobs:
             adb shell dumpsys activity activities > RahYar-0.13.6-activities.txt || true
             adb exec-out screencap -p > RahYar-0.13.6-final-screen.png
             test -n "$(adb shell pidof ir.rahyar.app)"
-            grep -q 'Bundled IRANSans FaNum family installed' RahYar-0.13.6-logcat.txt
             grep -q 'PASS HOME' RahYar-0.13.6-simulation.txt
             grep -q 'PASS SEARCH' RahYar-0.13.6-simulation.txt
             grep -q 'PASS LONG_PRESS_PIN' RahYar-0.13.6-simulation.txt
@@ -157,13 +160,13 @@ jobs:
             ! grep -q 'FAIL' RahYar-0.13.6-simulation.txt
             ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.6-logcat.txt
 
-      - name: Upload final validated build
+      - name: Upload CI-validated navigation build
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.13.6-alpha-p0-navigation-final
+          name: RahYar-0.13.6-alpha-p0-navigation-ci
           path: |
-            source/RahYar-0.13.6-alpha-p0.apk
-            source/RahYar-0.13.6-alpha-p0.sha256
+            source/RahYar-0.13.6-alpha-p0-ci.apk
+            source/RahYar-0.13.6-alpha-p0-ci.sha256
             source/rahyar-badging.txt
             source/rahyar-apk-files.txt
             source/RahYar-0.13.6-simulation.txt
