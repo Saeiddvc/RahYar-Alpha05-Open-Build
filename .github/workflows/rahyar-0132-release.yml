@@ -1,0 +1,120 @@
+name: RahYar 0.13.2 Release Gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0132-trigger.txt'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-stability-0131
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Require source token
+        env:
+          SOURCE_TOKEN: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+        run: test -n "$SOURCE_TOKEN"
+
+      - name: Checkout private RahYar source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Prepare RahYar 0.13.2 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+
+      - name: Compile APK
+        working-directory: source
+        run: gradle assembleDebug -x prepareRahYarSources --stacktrace
+
+      - name: Verify APK identity
+        working-directory: source
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" > rahyar-badging.txt
+          grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
+          grep -q "application-label:'راه‌یار'" rahyar-badging.txt
+          grep -q 'versionName=.0.13.2-alpha-p0.' rahyar-badging.txt
+          cp "$APK" RahYar-0.13.2-alpha-p0.apk
+          sha256sum RahYar-0.13.2-alpha-p0.apk > RahYar-0.13.2-alpha-p0.sha256
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Validate real V3 journey and process stability
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source
+          script: |
+            set -euo pipefail
+            adb install -r RahYar-0.13.2-alpha-p0.apk
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true
+            sleep 20
+            adb logcat -d > RahYar-0.13.2-logcat.txt
+            grep RahYarSim RahYar-0.13.2-logcat.txt > RahYar-0.13.2-simulation.txt || true
+            cat RahYar-0.13.2-simulation.txt
+            test -n "$(adb shell pidof ir.rahyar.app)"
+            for TOKEN in 'PASS HOME' 'PASS SEARCH' 'PASS LONG_PRESS_PIN' 'PASS ROUTE_PREVIEW' 'PASS NAVIGATION' 'PASS WAYPOINT_MENU' 'PASS REPORT_MENU' 'PASS OVERVIEW' 'COMPLETE'; do
+              grep -q "$TOKEN" RahYar-0.13.2-simulation.txt
+            done
+            ! grep -q 'FAIL' RahYar-0.13.2-simulation.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.2-logcat.txt
+            ! grep -q 'Process: ir.rahyar.app' RahYar-0.13.2-logcat.txt
+
+      - name: Upload validated RahYar 0.13.2
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.13.2-alpha-p0-validated
+          path: |
+            source/RahYar-0.13.2-alpha-p0.apk
+            source/RahYar-0.13.2-alpha-p0.sha256
+            source/rahyar-badging.txt
+            source/RahYar-0.13.2-simulation.txt
+            source/RahYar-0.13.2-logcat.txt
+          if-no-files-found: error
+          retention-days: 14
