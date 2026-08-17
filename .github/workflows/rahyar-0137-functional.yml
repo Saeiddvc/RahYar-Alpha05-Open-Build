@@ -56,6 +56,7 @@ jobs:
           python tools/apply_rahyar_0136_navigation_control.py
           python tools/apply_rahyar_0136_weather_guard.py
           python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
 
       - name: Source acceptance gates
         working-directory: source
@@ -67,6 +68,7 @@ jobs:
           grep -q 'REPORT_MAP_FEEDBACK' "$JAVA"
           grep -q 'OVERVIEW_MAP_TAP_DISMISS' "$JAVA"
           grep -q 'POST_TRIP_FEEDBACK' "$JAVA"
+          grep -q 'State.TRIP_FEEDBACK' "$JAVA"
           grep -q 'armNavigationPanelTapAway' "$JAVA"
           grep -q 'attachPanelAboveDock(card,dp(204))' "$JAVA"
           grep -q 'setCompassEnabled(true)' "$JAVA"
