@@ -1,4 +1,4 @@
 RahYar P0 build trigger
 Source: Saeiddvc/SaeidNavigator-Android@feature/rahyar-p0-stability-0131
 Triggered: 2026-08-17
-Purpose: GNSS stability + long-press crash fix + direct 2D/3D/satellite layer cycle + visible search progress
+Purpose: Neshan-class readability + persistent GPS status + crash resilience + safe map-mode fallback
