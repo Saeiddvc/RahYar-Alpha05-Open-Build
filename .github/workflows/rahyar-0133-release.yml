@@ -1,0 +1,149 @@
+name: RahYar 0.13.3 Field UX Gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0133-trigger.txt'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-stability-0131
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Require source token
+        env:
+          SOURCE_TOKEN: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+        run: test -n "$SOURCE_TOKEN"
+
+      - name: Checkout private RahYar source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Prepare RahYar 0.13.3 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+
+      - name: Gate requested field fixes in generated source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          grep -q 'new Locale("fa","IR")' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'persianTtsReady' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'forceMapMode2D' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'مرور کل مسیر' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'navSummary.setMaxLines(2)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'drawRoundRect(new RectF(cx-9\*u,cy-9\*u' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
+          grep -q 'RahYarPressFeedback.attach' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'B Traffic' app/src/main/java/ir/rahyar/app/RahYarTypography.java
+          grep -q 'OfflineManager.getInstance' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
+          grep -q 'createOfflineRegion' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
+          grep -q 'دانلود محدوده اطراف من' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
+
+      - name: Compile APK
+        working-directory: source
+        run: gradle assembleDebug -x prepareRahYarSources --stacktrace
+
+      - name: Verify APK identity
+        working-directory: source
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" > rahyar-badging.txt
+          grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
+          grep -q "application-label:'راه‌یار'" rahyar-badging.txt
+          grep -q 'versionName=.0.13.3-alpha-p0.' rahyar-badging.txt
+          cp "$APK" RahYar-0.13.3-alpha-p0.apk
+          sha256sum RahYar-0.13.3-alpha-p0.apk > RahYar-0.13.3-alpha-p0.sha256
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Validate V3 journey and offline manager surface
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source
+          script: |
+            set -eu
+            adb install -r RahYar-0.13.3-alpha-p0.apk
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true
+            sleep 20
+            adb logcat -d > RahYar-0.13.3-logcat.txt
+            grep RahYarSim RahYar-0.13.3-logcat.txt > RahYar-0.13.3-simulation.txt || true
+            cat RahYar-0.13.3-simulation.txt
+            test -n "$(adb shell pidof ir.rahyar.app)"
+            grep -q 'PASS HOME' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS SEARCH' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS LONG_PRESS_PIN' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS ROUTE_PREVIEW' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS NAVIGATION' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS WAYPOINT_MENU' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS REPORT_MENU' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS OVERVIEW' RahYar-0.13.3-simulation.txt
+            grep -q 'COMPLETE' RahYar-0.13.3-simulation.txt
+            ! grep -q 'FAIL' RahYar-0.13.3-simulation.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.3-logcat.txt
+            adb shell am start -n ir.rahyar.app/.RahYarOfflineMapsActivity
+            sleep 4
+            adb logcat -d >> RahYar-0.13.3-logcat.txt
+            test -n "$(adb shell pidof ir.rahyar.app)"
+            ! grep -q 'Process: ir.rahyar.app' RahYar-0.13.3-logcat.txt
+            adb exec-out screencap -p > RahYar-0.13.3-offline-screen.png
+
+      - name: Upload validated RahYar 0.13.3
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.13.3-alpha-p0-validated
+          path: |
+            source/RahYar-0.13.3-alpha-p0.apk
+            source/RahYar-0.13.3-alpha-p0.sha256
+            source/rahyar-badging.txt
+            source/RahYar-0.13.3-simulation.txt
+            source/RahYar-0.13.3-logcat.txt
+            source/RahYar-0.13.3-offline-screen.png
+          if-no-files-found: error
+          retention-days: 14
