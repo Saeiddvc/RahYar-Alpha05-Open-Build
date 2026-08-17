@@ -63,6 +63,7 @@ jobs:
         working-directory: source
         run: |
           set -euo pipefail
+          python tools/prepare_rahyar_0136_search_anchor.py
           python tools/apply_rahyar_0136_free_drive_navigation.py
           python tools/apply_rahyar_0136_validation.py
 
