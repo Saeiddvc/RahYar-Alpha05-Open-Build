@@ -1,0 +1,1 @@
+Export Android build-tools 37.0.0 for local final APK validation and signing.
