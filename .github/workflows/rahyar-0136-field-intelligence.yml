@@ -57,29 +57,7 @@ jobs:
           python tools/apply_rahyar_0133_layer_state.py
           python tools/apply_rahyar_0133_validation_hook.py
           python tools/apply_rahyar_0134_traffic_font.py
-
-      - name: Reconstruct exact owner supplied IRANSans FaNum family
-        working-directory: source
-        run: |
-          set -euo pipefail
-          cat \
-            branding/fonts/iransans_fanum_core.xz64.00 \
-            branding/fonts/iransans_fanum_core.xz64.01 \
-            branding/fonts/iransans_fanum_core.xz64.02 \
-            branding/fonts/iransans_fanum_core.xz64.03 \
-            branding/fonts/iransans_fanum_core.xz64.04_05 > /tmp/iransans-core.b64
-          base64 -d /tmp/iransans-core.b64 > /tmp/iransans-core.tar.xz
-          mkdir -p /tmp/iransans-unpack app/src/main/assets/fonts
-          xz -dc /tmp/iransans-core.tar.xz | tar -x -C /tmp/iransans-unpack
-          for name in iransans_fanum_regular.ttf iransans_fanum_medium.ttf iransans_fanum_bold.ttf; do
-            src=$(find /tmp/iransans-unpack -type f -name "$name" -print -quit)
-            test -n "$src"
-            cp "$src" "app/src/main/assets/fonts/$name"
-          done
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
-          python tools/apply_rahyar_0135_iransans_font.py
+          python tools/apply_rahyar_0135_version_only_for_0136.py
 
       - name: Apply 0.13.6 field intelligence fixes
         working-directory: source
@@ -113,7 +91,7 @@ jobs:
         working-directory: source
         run: gradle assembleDebug -x prepareRahYarSources --stacktrace
 
-      - name: Verify APK identity and fonts
+      - name: Verify APK identity
         working-directory: source
         run: |
           set -euo pipefail
@@ -124,12 +102,6 @@ jobs:
           grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
           grep -q "application-label:'راه‌یار'" rahyar-badging.txt
           grep -q 'versionName=.0.13.6-alpha-p0.' rahyar-badging.txt
-          unzip -p "$APK" assets/fonts/iransans_fanum_regular.ttf > extracted-iransans-regular.ttf
-          unzip -p "$APK" assets/fonts/iransans_fanum_medium.ttf > extracted-iransans-medium.ttf
-          unzip -p "$APK" assets/fonts/iransans_fanum_bold.ttf > extracted-iransans-bold.ttf
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  extracted-iransans-regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  extracted-iransans-medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  extracted-iransans-bold.ttf' | sha256sum -c -
           cp "$APK" RahYar-0.13.6-alpha-p0.apk
           sha256sum RahYar-0.13.6-alpha-p0.apk > RahYar-0.13.6-alpha-p0.sha256
 
@@ -161,7 +133,6 @@ jobs:
             adb shell dumpsys activity activities > RahYar-0.13.6-activities.txt || true
             adb exec-out screencap -p > RahYar-0.13.6-final-screen.png
             test -n "$(adb shell pidof ir.rahyar.app)"
-            grep -q 'Bundled IRANSans FaNum family installed' RahYar-0.13.6-logcat.txt
             grep -q 'PASS HOME' RahYar-0.13.6-simulation.txt
             grep -q 'PASS FREE_DRIVE' RahYar-0.13.6-simulation.txt
             grep -q 'PASS SEARCH' RahYar-0.13.6-simulation.txt
