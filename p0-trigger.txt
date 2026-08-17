@@ -1,4 +1,4 @@
 RahYar P0 build trigger
 Source: Saeiddvc/SaeidNavigator-Android@feature/rahyar-p0-stability-0131
 Triggered: 2026-08-17
-Purpose: robust Neshan-class readability + persistent GPS status + crash resilience + safe map-mode fallback (rerun 3)
+Purpose: formatting-independent Neshan-class readability + persistent GPS status + crash resilience + safe map-mode fallback (rerun 4)
