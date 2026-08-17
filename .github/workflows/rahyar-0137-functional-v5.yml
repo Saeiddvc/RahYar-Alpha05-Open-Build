@@ -1,0 +1,177 @@
+name: RahYar 0.13.7 Functional Field Gate v5
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0137-functional-v5-trigger.txt'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-stability-0137
+
+jobs:
+  functional-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Generate patched 0.13.7 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+
+      - name: Source acceptance
+        working-directory: source
+        run: |
+          set -euo pipefail
+          grep -q 'versionName = "0.13.7-alpha-p0"' app/build.gradle.kts
+          grep -q 'versionCode = 34' app/build.gradle.kts
+          grep -q 'REPORT_MAP_FEEDBACK' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'OVERVIEW_MAP_TAP_DISMISS' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'POST_TRIP_FEEDBACK' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'FEEDBACK_SAVE_NO_NEXT_STATE' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'armNavigationPanelTapAway' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'attachPanelAboveDock(card,dp(204))' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'setCompassEnabled(true)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'confirmStopNavigation' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+
+      - name: Compile
+        working-directory: source
+        run: gradle assembleDebug -x prepareRahYarSources --stacktrace
+
+      - name: Align and sign functional APK
+        working-directory: source
+        run: |
+          set -euo pipefail
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk unsigned.apk
+          zip -d unsigned.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
+          "$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
+          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0137 -keypass rahyar0137 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar Functional CI, OU=QA, O=RahYar, L=Tehran, C=IR'
+          "$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0137 --key-pass pass:rahyar0137 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.13.7-alpha-p0-functional.apk aligned.apk
+          "$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)/apksigner" verify --verbose --print-certs RahYar-0.13.7-alpha-p0-functional.apk > RahYar-0.13.7-functional-signing.txt
+          "$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)/zipalign" -P 16 -c -v 4 RahYar-0.13.7-alpha-p0-functional.apk > RahYar-0.13.7-functional-alignment.txt
+          sha256sum RahYar-0.13.7-alpha-p0-functional.apk > RahYar-0.13.7-functional.sha256
+          "$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)/aapt" dump badging RahYar-0.13.7-alpha-p0-functional.apk > rahyar-badging.txt
+          grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
+          grep -q 'versionName=.0.13.7-alpha-p0.' rahyar-badging.txt
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulator regression gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save
+          disable-animations: true
+          working-directory: source
+          script: |
+            adb wait-for-device
+            adb install -r RahYar-0.13.7-alpha-p0-functional.apk
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
+            sleep 11
+            adb wait-for-device
+            adb logcat -d > RahYar-0.13.7-logcat.txt
+            grep RahYarSim RahYar-0.13.7-logcat.txt > RahYar-0.13.7-simulation.txt || true
+            cat RahYar-0.13.7-simulation.txt
+            grep -q 'PASS HOME' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS SEARCH' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS ROUTE_PREVIEW' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS NAVIGATION' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS HEADING_ROUTE_ALIGNED' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS REPORT_MAP_FEEDBACK' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS OVERVIEW' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS OVERVIEW_MAP_TAP_DISMISS' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS STOP_CONTROL' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS POST_TRIP_FEEDBACK' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS FEEDBACK_SAVE' RahYar-0.13.7-simulation.txt
+            grep -q 'COMPLETE' RahYar-0.13.7-simulation.txt
+            grep -q 'PASS OFFLINE_ACTIVITY' RahYar-0.13.7-simulation.txt
+            ! grep -q 'FAIL' RahYar-0.13.7-simulation.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.7-logcat.txt
+            test -n "$(adb shell pidof ir.rahyar.app)"
+            adb exec-out screencap -p > RahYar-0.13.7-final-screen.png || true
+            adb shell dumpsys activity activities > RahYar-0.13.7-activities.txt || true
+
+      - name: Write functional validation
+        if: success()
+        working-directory: source
+        run: |
+          cat > Functional-Validation-0.13.7.txt <<'EOF'
+          RahYar 0.13.7 Alpha P0 - Functional Emulator Validation
+          =======================================================
+          Package: ir.rahyar.app
+          Version: 0.13.7-alpha-p0 / versionCode 34
+          PASS: visible report marker on map.
+          PASS: map tap dismisses navigation panels/overview.
+          PASS: overview remains compact and map-dominant.
+          PASS: manual route end enters post-trip feedback and valid next state.
+          PASS: route-aligned heading, stop control, route preview and offline activity.
+          Typography note: this CI APK uses placeholder bytes at final font runtime paths and is not the delivery APK. Final delivery injects the exact locked IRANSans FaNum Regular/Medium/Bold bytes from the validated 0.13.6 baseline, then re-aligns and re-signs.
+          EOF
+          cat RahYar-0.13.7-functional.sha256 >> Functional-Validation-0.13.7.txt
+
+      - name: Upload functional candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.13.7-alpha-p0-functional-v5
+          path: |
+            source/RahYar-0.13.7-alpha-p0-functional.apk
+            source/RahYar-0.13.7-functional.sha256
+            source/Functional-Validation-0.13.7.txt
+            source/RahYar-0.13.7-functional-signing.txt
+            source/RahYar-0.13.7-functional-alignment.txt
+            source/rahyar-badging.txt
+            source/RahYar-0.13.7-simulation.txt
+            source/RahYar-0.13.7-logcat.txt
+            source/RahYar-0.13.7-activities.txt
+            source/RahYar-0.13.7-final-screen.png
+          if-no-files-found: warn
+          retention-days: 14
