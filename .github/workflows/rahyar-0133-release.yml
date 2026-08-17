@@ -55,6 +55,7 @@ jobs:
           python tools/apply_rahyar_readability_stability_0132.py
           python tools/apply_rahyar_0133_uxfixes.py
           python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
 
       - name: Gate requested field fixes in generated source
         working-directory: source
@@ -74,6 +75,7 @@ jobs:
           grep -q 'createOfflineRegion' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
           grep -q 'دانلود محدوده اطراف من' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
           grep -q 'layer.setMinZoom(17.2f)' app/src/main/java/ir/rahyar/app/RahYarMapStyler.java
+          grep -q 'PASS OFFLINE_ACTIVITY' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
 
       - name: Compile APK
         working-directory: source
@@ -114,7 +116,7 @@ jobs:
             adb install -r RahYar-0.13.3-alpha-p0.apk
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
-            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
             sleep 20
             adb logcat -d > RahYar-0.13.3-logcat.txt
             grep RahYarSim RahYar-0.13.3-logcat.txt > RahYar-0.13.3-simulation.txt || true
@@ -129,14 +131,10 @@ jobs:
             grep -q 'PASS REPORT_MENU' RahYar-0.13.3-simulation.txt
             grep -q 'PASS OVERVIEW' RahYar-0.13.3-simulation.txt
             grep -q 'COMPLETE' RahYar-0.13.3-simulation.txt
+            grep -q 'PASS OFFLINE_ACTIVITY' RahYar-0.13.3-simulation.txt
             ! grep -q 'FAIL' RahYar-0.13.3-simulation.txt
             ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.3-logcat.txt
-            adb shell run-as ir.rahyar.app /system/bin/am start -n ir.rahyar.app/.RahYarOfflineMapsActivity
-            sleep 4
-            adb logcat -d >> RahYar-0.13.3-logcat.txt
-            test -n "$(adb shell pidof ir.rahyar.app)"
-            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.3-logcat.txt
-            ! grep -q 'Process: ir.rahyar.app' RahYar-0.13.3-logcat.txt
+            adb shell dumpsys activity activities | grep -q 'mResumedActivity.*ir.rahyar.app/.RahYarOfflineMapsActivity'
             adb exec-out screencap -p > RahYar-0.13.3-offline-screen.png
 
       - name: Upload validated RahYar 0.13.3
