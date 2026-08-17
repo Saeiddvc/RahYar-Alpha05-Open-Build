@@ -99,9 +99,15 @@ jobs:
             grep RahYarSim RahYar-0.13.2-logcat.txt > RahYar-0.13.2-simulation.txt || true
             cat RahYar-0.13.2-simulation.txt
             test -n "$(adb shell pidof ir.rahyar.app)"
-            for TOKEN in 'PASS HOME' 'PASS SEARCH' 'PASS LONG_PRESS_PIN' 'PASS ROUTE_PREVIEW' 'PASS NAVIGATION' 'PASS WAYPOINT_MENU' 'PASS REPORT_MENU' 'PASS OVERVIEW' 'COMPLETE'; do
-              grep -q "$TOKEN" RahYar-0.13.2-simulation.txt
-            done
+            grep -q 'PASS HOME' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS SEARCH' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS LONG_PRESS_PIN' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS ROUTE_PREVIEW' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS NAVIGATION' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS WAYPOINT_MENU' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS REPORT_MENU' RahYar-0.13.2-simulation.txt
+            grep -q 'PASS OVERVIEW' RahYar-0.13.2-simulation.txt
+            grep -q 'COMPLETE' RahYar-0.13.2-simulation.txt
             ! grep -q 'FAIL' RahYar-0.13.2-simulation.txt
             ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.2-logcat.txt
             ! grep -q 'Process: ir.rahyar.app' RahYar-0.13.2-logcat.txt
