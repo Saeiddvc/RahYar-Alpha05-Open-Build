@@ -1,1 +1,1 @@
-RahYar 0.13.7 Alpha P0 functional gate v6 retry 4. Status publisher is enabled; post-rating completion hardening included.
+RahYar 0.13.7 Alpha P0 functional gate v6 retry 5. Feedback completion now patches by method boundary and preserves Trip Story preference.
