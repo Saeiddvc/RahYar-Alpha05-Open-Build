@@ -1,0 +1,3 @@
+RahYar 0.13.2 release validation
+Triggered: 2026-08-17
+Baseline: Neshan-class readability and information hierarchy
