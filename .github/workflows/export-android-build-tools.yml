@@ -1,0 +1,31 @@
+name: Export Android Build Tools
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'export-build-tools-trigger.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Install and package Android build tools
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install 'build-tools;37.0.0' >/dev/null
+          mkdir -p export/build-tools
+          cp -a "$ANDROID_HOME/build-tools/37.0.0/." export/build-tools/
+          test -x export/build-tools/zipalign
+          test -x export/build-tools/apksigner
+          test -x export/build-tools/aapt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-build-tools-37-linux
+          path: export/build-tools
+          retention-days: 2
