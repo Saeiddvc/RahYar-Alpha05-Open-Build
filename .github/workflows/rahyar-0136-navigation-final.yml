@@ -70,6 +70,7 @@ jobs:
           p.write_text(s)
           PY
           python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
 
       - name: Gate navigation controls
         working-directory: source
@@ -88,6 +89,7 @@ jobs:
           grep -q 'PASS HEADING_ROUTE_ALIGNED' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'STOP_CONTROL_MISSING' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'routeBearing(targetLat, targetLon, route)' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          grep -q 'navStop=stop;if(weatherWidget!=null)weatherWidget.setVisibility(View.GONE);' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'versionName = "0.13.6-alpha-p0"' app/build.gradle.kts
 
       - name: Compile APK
