@@ -1,0 +1,1 @@
+RahYar 0.13.7 Alpha P0 functional gate v4: short deterministic emulator evidence window for field regressions.
