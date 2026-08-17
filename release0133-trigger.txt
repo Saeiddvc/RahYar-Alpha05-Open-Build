@@ -1,4 +1,4 @@
 RahYar 0.13.3 field UX validation
 Triggered: 2026-08-17
-Rerun: internal offline activity validation + map number declutter
+Rerun: internal offline validation + map number declutter + persistent layer state
 Scope: Persian TTS, 2D/3D recovery, route overview, WC icon, Traffic-first typography, functional offline maps, press feedback
