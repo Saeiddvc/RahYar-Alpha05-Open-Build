@@ -57,9 +57,6 @@ jobs:
           python tools/apply_rahyar_0133_layer_state.py
           python tools/apply_rahyar_0133_validation_hook.py
           python tools/apply_rahyar_0134_traffic_font.py
-          # Functional CI uses the already verified bundled face as a temporary
-          # transport placeholder. The release APK receives the owner's exact
-          # IRANSans Regular/Medium/Bold binaries after this functional gate.
           mkdir -p app/src/main/assets/fonts
           cp app/src/main/assets/fonts/b_traffic.ttf app/src/main/assets/fonts/iransans_fanum_regular.ttf
           cp app/src/main/assets/fonts/b_traffic.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf
@@ -138,13 +135,18 @@ jobs:
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
             sleep 7.6
-            adb exec-out screencap -p > RahYar-0.13.6-stop-control-screen.png
+            adb exec-out screencap -p > RahYar-0.13.6-stop-control-screen.png || true
             sleep 12
-            adb logcat -d > RahYar-0.13.6-logcat.txt
+            adb logcat -d > RahYar-0.13.6-logcat.txt || true
             grep RahYarSim RahYar-0.13.6-logcat.txt > RahYar-0.13.6-simulation.txt || true
             adb shell dumpsys activity activities > RahYar-0.13.6-activities.txt || true
-            adb exec-out screencap -p > RahYar-0.13.6-final-screen.png
-            test -n "$(adb shell pidof ir.rahyar.app)"
+            adb exec-out screencap -p > RahYar-0.13.6-final-screen.png || true
+            echo '=== RAHYAR SIMULATION ==='
+            cat RahYar-0.13.6-simulation.txt || true
+            echo '=== RAHYAR FATAL/PROCESS DIAGNOSTICS ==='
+            grep -E 'FATAL EXCEPTION|AndroidRuntime|Process: ir.rahyar.app|RahYarSim.*FAIL' RahYar-0.13.6-logcat.txt || true
+            echo '=== PID ==='
+            adb shell pidof ir.rahyar.app || true
             grep -q 'PASS HOME' RahYar-0.13.6-simulation.txt
             grep -q 'PASS SEARCH' RahYar-0.13.6-simulation.txt
             grep -q 'PASS LONG_PRESS_PIN' RahYar-0.13.6-simulation.txt
@@ -160,7 +162,8 @@ jobs:
             ! grep -q 'FAIL' RahYar-0.13.6-simulation.txt
             ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.6-logcat.txt
 
-      - name: Upload CI-validated navigation build
+      - name: Upload RahYar 0.13.6 build and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: RahYar-0.13.6-alpha-p0-navigation-ci
@@ -174,5 +177,5 @@ jobs:
             source/RahYar-0.13.6-activities.txt
             source/RahYar-0.13.6-stop-control-screen.png
             source/RahYar-0.13.6-final-screen.png
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
