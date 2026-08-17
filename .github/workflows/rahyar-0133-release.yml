@@ -54,6 +54,7 @@ jobs:
           python tools/apply_rahyar_field_stability_0131.py
           python tools/apply_rahyar_readability_stability_0132.py
           python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
 
       - name: Gate requested field fixes in generated source
         working-directory: source
@@ -66,6 +67,8 @@ jobs:
           grep -q 'navSummary.setMaxLines(2)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'drawRoundRect(new RectF(cx-9\*u,cy-9\*u' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'RahYarPressFeedback.attach' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'updateLayerModeButtonState' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'تصاویر طبیعی فعال' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'B Traffic' app/src/main/java/ir/rahyar/app/RahYarTypography.java
           grep -q 'OfflineManager.getInstance' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
           grep -q 'createOfflineRegion' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
