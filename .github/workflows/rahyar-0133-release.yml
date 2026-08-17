@@ -70,6 +70,7 @@ jobs:
           grep -q 'OfflineManager.getInstance' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
           grep -q 'createOfflineRegion' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
           grep -q 'دانلود محدوده اطراف من' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
+          grep -q 'layer.setMinZoom(17.2f)' app/src/main/java/ir/rahyar/app/RahYarMapStyler.java
 
       - name: Compile APK
         working-directory: source
@@ -127,10 +128,11 @@ jobs:
             grep -q 'COMPLETE' RahYar-0.13.3-simulation.txt
             ! grep -q 'FAIL' RahYar-0.13.3-simulation.txt
             ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.3-logcat.txt
-            adb shell am start -n ir.rahyar.app/.RahYarOfflineMapsActivity
+            adb shell run-as ir.rahyar.app /system/bin/am start -n ir.rahyar.app/.RahYarOfflineMapsActivity
             sleep 4
             adb logcat -d >> RahYar-0.13.3-logcat.txt
             test -n "$(adb shell pidof ir.rahyar.app)"
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.3-logcat.txt
             ! grep -q 'Process: ir.rahyar.app' RahYar-0.13.3-logcat.txt
             adb exec-out screencap -p > RahYar-0.13.3-offline-screen.png
 
