@@ -70,6 +70,7 @@ jobs:
           test -s tools/apply_rahyar_search_waypoint_stability.py
           test -s tools/apply_rahyar_navigation_motion.py
           test -s tools/apply_rahyar_field_stability_0131.py
+          test -s tools/apply_rahyar_readability_stability_0132.py
           test -s app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
           test -s app/src/main/java/ir/rahyar/app/RahYarLocationStabilityGate.java
           test -s app/src/main/java/ir/rahyar/app/RahYarPuckFactory.java
@@ -110,6 +111,19 @@ jobs:
         working-directory: source
         run: python tools/apply_rahyar_field_stability_0131.py
 
+      - name: Apply 0.13.2 driving readability and crash resilience
+        working-directory: source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tools/apply_rahyar_readability_stability_0132.py')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('b = BUBBLE.read_text(encoding="utf-8")nb = b','b = BUBBLE.read_text(encoding="utf-8")\n')
+          p.write_text(s,encoding='utf-8')
+          PY
+          python tools/apply_rahyar_readability_stability_0132.py
+
       - name: Build actual RahYar APK
         working-directory: source
         run: gradle assembleDebug -x prepareRahYarSources --stacktrace
@@ -124,9 +138,9 @@ jobs:
           "$AAPT" dump badging "$APK" > rahyar-badging.txt
           grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
           grep -q "application-label:'راه‌یار'" rahyar-badging.txt
-          grep -q 'versionName=.0.13.1-alpha-p0.' rahyar-badging.txt
-          sha256sum "$APK" > RahYar-0.13.1-alpha-p0.sha256
-          cp "$APK" RahYar-0.13.1-alpha-p0.apk
+          grep -q 'versionName=.0.13.2-alpha-p0.' rahyar-badging.txt
+          sha256sum "$APK" > RahYar-0.13.2-alpha-p0.sha256
+          cp "$APK" RahYar-0.13.2-alpha-p0.apk
 
       - name: Enable KVM
         run: |
@@ -146,7 +160,7 @@ jobs:
           working-directory: source
           script: |
             set -e
-            adb install -r RahYar-0.13.1-alpha-p0.apk
+            adb install -r RahYar-0.13.2-alpha-p0.apk
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true
@@ -168,12 +182,13 @@ jobs:
             grep -q 'PASS OVERVIEW' RahYar-P0-simulation.txt
             grep -q 'COMPLETE' RahYar-P0-simulation.txt
             if grep -q 'FAIL' RahYar-P0-simulation.txt; then exit 11; fi
+            if grep -q 'Process: ir.rahyar.app' RahYar-P0-full-log.txt; then echo 'RahYar process crash detected'; exit 12; fi
 
-      - name: Gate P0 compiled features brand parity motion and stability
+      - name: Gate P0 compiled features readability and stability
         working-directory: source
         run: |
           set -euo pipefail
-          grep -q 'versionName = "0.13.1-alpha-p0"' app/build.gradle.kts
+          grep -q 'versionName = "0.13.2-alpha-p0"' app/build.gradle.kts
           grep -q 'SafetyEngine.begin(route)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarSmartRestController.maybeSuggest' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'showSaveRoutePrompt' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
@@ -183,9 +198,8 @@ jobs:
           grep -q 'addOnMapLongClickListener' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'consumePinnedDestination' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'cycleMapMode' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          ! grep -q 'showLayerPanel' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'probeAndApplySatellite' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'install3DBuildings' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'World_Imagery/MapServer/tile' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'ProgressBar spinner' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarLocationStabilityGate' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'locationGate.accept' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
@@ -197,17 +211,21 @@ jobs:
           grep -q 'addLayerBelow(rl,LOC_HALO_LAYER)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'ValueAnimator' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
           grep -q 'RahYarBrand.NAVY' app/src/main/java/ir/rahyar/app/RahYarPuckFactory.java
-          grep -q '2.38f \* u' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
-          grep -q 'HUD' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
+          grep -q 'navInstruction=text("",20f' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'navSummary=text("",15.5f' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'اختلال GPS؛ موقعیت شما تقریبی است' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'safeAction(String name' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'setTextSize(12.3f)' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
+          grep -q 'Level.EXPANDED?20' app/src/main/java/ir/rahyar/app/RahYarBubbleView.java
 
       - name: Upload P0 APK and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.13.1-alpha-p0-stability
+          name: RahYar-0.13.2-alpha-p0-readability
           path: |
-            source/RahYar-0.13.1-alpha-p0.apk
-            source/RahYar-0.13.1-alpha-p0.sha256
+            source/RahYar-0.13.2-alpha-p0.apk
+            source/RahYar-0.13.2-alpha-p0.sha256
             source/rahyar-badging.txt
             source/RahYar-P0-simulation.txt
             source/RahYar-P0-full-log.txt
