@@ -1,0 +1,2 @@
+RahYar 0.13.4 release trigger
+Purpose: embed exact user-supplied B Traffic font and validate runtime typography.
