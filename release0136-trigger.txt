@@ -1,3 +1,3 @@
 RahYar 0.13.6 navigation control and heading-up validated build
-Triggered: 2026-08-17T23:50+03:30
-Hard weather guard at navigation entry
+Triggered: 2026-08-17T23:57+03:30
+Post-0136 weather guard enabled
