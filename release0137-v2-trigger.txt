@@ -1,1 +1,2 @@
-RahYar 0.13.7 Alpha P0 closeout gate v2 using locked private IRANSans payloads.
+RahYar 0.13.7 Alpha P0 closeout gate v2 retry 2.
+Exact IRANSans reconstruction now tries all locked repository payload formats and accepts only locked SHA-256 matches.
