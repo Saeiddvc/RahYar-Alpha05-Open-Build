@@ -1,4 +1,4 @@
 RahYar P0 build trigger
-Source: Saeiddvc/SaeidNavigator-Android@feature/rahyar-p0-product-core
+Source: Saeiddvc/SaeidNavigator-Android@feature/rahyar-p0-stability-0131
 Triggered: 2026-08-17
-Purpose: distinct navy vehicle puck + interpolated GNSS movement + continuous camera follow
+Purpose: GNSS stability + long-press crash fix + direct 2D/3D/satellite layer cycle + visible search progress
