@@ -68,6 +68,9 @@ jobs:
           test -s tools/apply_rahyar_brand_runtime.py
           test -s tools/apply_rahyar_icon_polish.py
           test -s tools/apply_rahyar_search_waypoint_stability.py
+          test -s tools/apply_rahyar_navigation_motion.py
+          test -s app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          test -s app/src/main/java/ir/rahyar/app/RahYarPuckFactory.java
           test -s app/src/main/java/ir/rahyar/app/RahYarPinnedPointStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSavedRouteStore.java
           test -s app/src/main/java/ir/rahyar/app/RahYarSmartRestController.java
@@ -93,9 +96,17 @@ jobs:
         working-directory: source
         run: python tools/apply_rahyar_search_waypoint_stability.py
 
+      - name: Prepare P0 product wiring
+        working-directory: source
+        run: gradle prepareRahYarSources --stacktrace
+
+      - name: Apply continuous navigation motion and distinct puck
+        working-directory: source
+        run: python tools/apply_rahyar_navigation_motion.py
+
       - name: Build actual RahYar APK
         working-directory: source
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug -x prepareRahYarSources --stacktrace
 
       - name: Verify generated APK identity
         working-directory: source
@@ -150,7 +161,7 @@ jobs:
             grep -q 'COMPLETE' RahYar-P0-simulation.txt
             if grep -q 'FAIL' RahYar-P0-simulation.txt; then exit 11; fi
 
-      - name: Gate P0 compiled features brand and Neshan parity
+      - name: Gate P0 compiled features brand parity and motion
         working-directory: source
         run: |
           set -euo pipefail
@@ -169,6 +180,12 @@ jobs:
           grep -q 'searchNear(q,location.getLatitude(),location.getLongitude())' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'waypointLoading' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'bounded=1&countrycodes=ir' app/src/main/java/ir/rahyar/app/OpenNavCore.java
+          grep -q 'navigationMotion.accept' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'renderNavigationMotion' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'addLayerBelow(rl,LOC_HALO_LAYER)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'ValueAnimator' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          grep -q 'LinearInterpolator' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          grep -q 'RahYarBrand.NAVY' app/src/main/java/ir/rahyar/app/RahYarPuckFactory.java
           grep -q '2.38f \* u' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'HUD' app/src/main/java/ir/rahyar/app/RahYarIconTextView.java
           grep -q 'RahYarBrand.TURQUOISE' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
@@ -178,7 +195,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.13.0-alpha-p0-parity
+          name: RahYar-0.13.0-alpha-p0-motion
           path: |
             source/RahYar-0.13.0-alpha-p0.apk
             source/RahYar-0.13.0-alpha-p0.sha256
