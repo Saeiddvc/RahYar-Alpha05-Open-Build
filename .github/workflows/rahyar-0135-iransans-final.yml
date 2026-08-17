@@ -1,0 +1,169 @@
+name: RahYar 0.13.5 IRANSans Final Gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0135-trigger.txt'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-stability-0131
+
+jobs:
+  final-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Require source token
+        env:
+          SOURCE_TOKEN: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+        run: test -n "$SOURCE_TOKEN"
+
+      - name: Checkout private RahYar source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Prepare final source with IRANSans FaNum
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/apply_rahyar_0135_iransans_font.py
+
+      - name: Gate exact IRANSans integration
+        working-directory: source
+        run: |
+          set -euo pipefail
+          test -s app/src/main/assets/fonts/iransans_fanum_regular.ttf
+          test -s app/src/main/assets/fonts/iransans_fanum_medium.ttf
+          test -s app/src/main/assets/fonts/iransans_fanum_bold.ttf
+          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
+          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
+          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
+          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+          grep -q 'createFromAsset(getAssets(), "fonts/iransans_fanum_regular.ttf")' app/src/main/java/ir/rahyar/app/RahYarApplication.java
+          grep -q 'createFromAsset(getAssets(), "fonts/iransans_fanum_medium.ttf")' app/src/main/java/ir/rahyar/app/RahYarApplication.java
+          grep -q 'createFromAsset(getAssets(), "fonts/iransans_fanum_bold.ttf")' app/src/main/java/ir/rahyar/app/RahYarApplication.java
+          grep -q 'installIRANSans' app/src/main/java/ir/rahyar/app/RahYarApplication.java
+          grep -q 'installIRANSans' app/src/main/java/ir/rahyar/app/RahYarTypography.java
+          ! grep -q 'installTraffic' app/src/main/java/ir/rahyar/app/RahYarTypography.java
+          grep -q 'new Locale("fa","IR")' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'forceMapMode2D' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'مرور کل مسیر' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'OfflineManager.getInstance' app/src/main/java/ir/rahyar/app/RahYarOfflineMapsActivity.java
+
+      - name: Compile APK
+        working-directory: source
+        run: gradle assembleDebug -x prepareRahYarSources --stacktrace
+
+      - name: Verify APK identity and embedded IRANSans
+        working-directory: source
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" > rahyar-badging.txt
+          grep -q "package: name='ir.rahyar.app'" rahyar-badging.txt
+          grep -q "application-label:'راه‌یار'" rahyar-badging.txt
+          grep -q 'versionName=.0.13.5-alpha-p0.' rahyar-badging.txt
+          unzip -l "$APK" > rahyar-apk-files.txt
+          grep -q 'assets/fonts/iransans_fanum_regular.ttf' rahyar-apk-files.txt
+          grep -q 'assets/fonts/iransans_fanum_medium.ttf' rahyar-apk-files.txt
+          grep -q 'assets/fonts/iransans_fanum_bold.ttf' rahyar-apk-files.txt
+          ! grep -q 'assets/fonts/b_traffic.ttf' rahyar-apk-files.txt
+          unzip -p "$APK" assets/fonts/iransans_fanum_regular.ttf > extracted-iransans-regular.ttf
+          unzip -p "$APK" assets/fonts/iransans_fanum_medium.ttf > extracted-iransans-medium.ttf
+          unzip -p "$APK" assets/fonts/iransans_fanum_bold.ttf > extracted-iransans-bold.ttf
+          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  extracted-iransans-regular.ttf' | sha256sum -c -
+          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  extracted-iransans-medium.ttf' | sha256sum -c -
+          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  extracted-iransans-bold.ttf' | sha256sum -c -
+          cp "$APK" RahYar-0.13.5-alpha-p0.apk
+          sha256sum RahYar-0.13.5-alpha-p0.apk > RahYar-0.13.5-alpha-p0.sha256
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Validate V3 journey, Offline Maps and runtime IRANSans
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source
+          script: |
+            set -eu
+            adb install -r RahYar-0.13.5-alpha-p0.apk
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
+            sleep 20
+            adb logcat -d > RahYar-0.13.5-logcat.txt
+            grep RahYarSim RahYar-0.13.5-logcat.txt > RahYar-0.13.5-simulation.txt || true
+            adb shell dumpsys activity activities > RahYar-0.13.5-activities.txt || true
+            adb exec-out screencap -p > RahYar-0.13.5-offline-screen.png
+            test -n "$(adb shell pidof ir.rahyar.app)"
+            grep -q 'Bundled IRANSans FaNum family installed' RahYar-0.13.5-logcat.txt
+            grep -q 'PASS HOME' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS SEARCH' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS LONG_PRESS_PIN' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS ROUTE_PREVIEW' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS NAVIGATION' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS WAYPOINT_MENU' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS REPORT_MENU' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS OVERVIEW' RahYar-0.13.5-simulation.txt
+            grep -q 'COMPLETE' RahYar-0.13.5-simulation.txt
+            grep -q 'PASS OFFLINE_ACTIVITY' RahYar-0.13.5-simulation.txt
+            ! grep -q 'FAIL' RahYar-0.13.5-simulation.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.5-logcat.txt
+
+      - name: Upload final validated build
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.13.5-alpha-p0-iransans-final
+          path: |
+            source/RahYar-0.13.5-alpha-p0.apk
+            source/RahYar-0.13.5-alpha-p0.sha256
+            source/rahyar-badging.txt
+            source/rahyar-apk-files.txt
+            source/RahYar-0.13.5-simulation.txt
+            source/RahYar-0.13.5-logcat.txt
+            source/RahYar-0.13.5-activities.txt
+            source/RahYar-0.13.5-offline-screen.png
+          if-no-files-found: error
+          retention-days: 14
