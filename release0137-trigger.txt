@@ -1,0 +1,2 @@
+RahYar 0.13.7 Alpha P0
+Field fixes: report map feedback, map tap-away menus, compact overview, post-trip feedback after manual stop.
