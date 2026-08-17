@@ -1,1 +1,1 @@
-RahYar 0.13.7 Alpha P0 functional gate for field-reported overview, report feedback, tap-away and post-trip defects.
+RahYar 0.13.7 Alpha P0 functional gate retry 2 after TRIP_FEEDBACK state correction.
