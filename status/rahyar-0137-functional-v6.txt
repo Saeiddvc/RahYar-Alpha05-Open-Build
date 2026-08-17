@@ -1,0 +1,7 @@
+run_id=32076055346
+run_number=4
+conclusion=failure
+status=completed
+head_sha=ba032511d1c0f3ab6ebfe3f4fb380a8bbcded7d0
+updated_at=2026-08-17T22:27:50Z
+artifact_name=RahYar-0.13.7-alpha-p0-functional-v6
