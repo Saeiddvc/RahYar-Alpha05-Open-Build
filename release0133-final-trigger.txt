@@ -1,0 +1,3 @@
+RahYar 0.13.3 final validation
+Triggered: 2026-08-17
+Scope: current field fixes and in-app offline validation
