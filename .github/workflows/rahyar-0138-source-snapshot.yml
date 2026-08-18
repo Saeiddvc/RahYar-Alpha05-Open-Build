@@ -1,0 +1,71 @@
+name: RahYar 0.13.8 Source Snapshot
+
+on:
+  push:
+    paths:
+      - 'release0138-source-trigger.txt'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-stability-0137
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Generate current 0.13.7 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+      - name: Package generated source
+        working-directory: source
+        run: |
+          mkdir -p snapshot/app/src/main/java/ir/rahyar/app
+          cp app/src/main/java/ir/rahyar/app/RahYarV3Activity.java snapshot/app/src/main/java/ir/rahyar/app/
+          cp app/src/main/java/ir/rahyar/app/RahYarWeatherWidget.java snapshot/app/src/main/java/ir/rahyar/app/
+          cp app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java snapshot/app/src/main/java/ir/rahyar/app/
+          cp app/src/main/java/ir/rahyar/app/RahYarMapStyler.java snapshot/app/src/main/java/ir/rahyar/app/ || true
+          cp app/src/main/java/ir/rahyar/app/OpenNavCore.java snapshot/app/src/main/java/ir/rahyar/app/
+          cp app/build.gradle.kts snapshot/
+          cp app/src/main/AndroidManifest.xml snapshot/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.13.7-generated-source-for-0138
+          path: source/snapshot
+          retention-days: 7
