@@ -1,1 +1,1 @@
-trigger 2026-08-18 0.13.9 visual proof v2
+trigger 2026-08-18 0.13.9 visual proof v3 dark-theme-fix
