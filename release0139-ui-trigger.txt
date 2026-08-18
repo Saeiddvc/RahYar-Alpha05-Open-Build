@@ -1,1 +1,1 @@
-trigger 2026-08-18 0.13.9 ui behavior v8 hardened-theme-state
+trigger 2026-08-18 0.13.9 ui behavior v9 vertical-weather-dark-polish
