@@ -1,1 +1,1 @@
-Build RahYar 0.13.8 from the exact 0.13.7 generated baseline with free drive, smooth heading-up, vertical weather and compact overview gates.
+Build RahYar 0.13.8 field baseline. Retry 2 after removing all residual navigation weather hides and guarding the graphical widget.
