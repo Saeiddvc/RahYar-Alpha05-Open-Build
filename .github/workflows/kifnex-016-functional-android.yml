@@ -108,7 +108,7 @@ jobs:
           disable-animations: true
           working-directory: source/kifnex-preview
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r KifNex-0.1.0-alpha.16-functional-android.apk
             adb shell pm clear ir.kifnex.app
             adb logcat -c
