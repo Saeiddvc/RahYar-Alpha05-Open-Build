@@ -1,0 +1,1 @@
+Build RahYar 0.13.8 field gate v2 with restored Persian TTS init and strict behavioral checks.
