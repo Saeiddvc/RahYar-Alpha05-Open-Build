@@ -6,7 +6,7 @@ on:
       - 'release0138-source-trigger.txt'
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
@@ -69,3 +69,19 @@ jobs:
           name: RahYar-0.13.7-generated-source-for-0138
           path: source/snapshot
           retention-days: 7
+      - name: Publish snapshot status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p status
+          printf 'run_id=%s\nrun_number=%s\nconclusion=%s\nstatus=%s\nupdated_at=%s\nartifact_name=%s\n' \
+            '${{ github.run_id }}' '${{ github.run_number }}' '${{ job.status }}' 'completed' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.13.7-generated-source-for-0138' > /tmp/rahyar-0138-source.txt
+          b64=$(base64 -w0 /tmp/rahyar-0138-source.txt)
+          api="repos/${{ github.repository }}/contents/status/rahyar-0138-source.txt"
+          sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then
+            gh api --method PUT "$api" -f message='Update RahYar 0.13.8 source snapshot status' -f content="$b64" -f sha="$sha" >/dev/null
+          else
+            gh api --method PUT "$api" -f message='Add RahYar 0.13.8 source snapshot status' -f content="$b64" >/dev/null
+          fi
