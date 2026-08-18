@@ -119,7 +119,7 @@ jobs:
           disable-animations: true
           working-directory: source/kifnex-preview
           script: |
-            set -euo pipefail
+            set -e
             adb install -r KifNex-0.1.0-alpha.16-full-interactive-demo.apk
             adb logcat -c
             adb shell am force-stop ir.kifnex.app
@@ -133,7 +133,7 @@ jobs:
             grep -q 'شماره موبایل' kifnex-alpha16-registration.xml
             adb exec-out screencap -p > kifnex-alpha16-registration.png
             adb logcat -d > kifnex-alpha16-logcat.txt
-            ! grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex-alpha16-logcat.txt
+            if grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex-alpha16-logcat.txt; then exit 1; fi
 
       - name: Upload validated Alpha16 build
         uses: actions/upload-artifact@v4
