@@ -1,0 +1,173 @@
+name: KifNex 0.1.0-alpha.17 Full Interactive
+
+on:
+  push:
+    paths:
+      - 'kifnex017-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: kifnex-alpha17-android
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout build-status repository
+        uses: actions/checkout@v4
+        with:
+          path: buildrepo
+          fetch-depth: 1
+
+      - name: Require private source token
+        env:
+          SOURCE_TOKEN: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+        run: test -n "$SOURCE_TOKEN"
+
+      - name: Checkout private KifNex source branch
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Prepare IRANSans product typography
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/res/font
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' \
+            -o app/src/main/res/font/iransans_fanum_regular.ttf
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' \
+            -o app/src/main/res/font/iransans_fanum_medium.ttf
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' \
+            -o app/src/main/res/font/iransans_fanum_bold.ttf
+          fc-scan --format='%{family}\n' app/src/main/res/font/iransans_fanum_regular.ttf | tee iransans-family.txt
+          grep -qi 'IRANSans' iransans-family.txt
+          sha256sum app/src/main/res/font/*.ttf > iransans-build-sha256.txt
+
+      - name: Compile APK
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          cp "$APK" KifNex-0.1.0-alpha.17-full-interactive.apk
+          sha256sum KifNex-0.1.0-alpha.17-full-interactive.apk > KifNex-0.1.0-alpha.17-full-interactive.sha256
+
+      - name: Verify identity
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          APK=KifNex-0.1.0-alpha.17-full-interactive.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" > kifnex017-badging.txt
+          grep -q "package: name='ir.kifnex.app'" kifnex017-badging.txt
+          grep -q "application-label:'کیف‌نکس'" kifnex017-badging.txt
+          grep -q "versionName='0.1.0-alpha.17'" kifnex017-badging.txt
+          unzip -l "$APK" > kifnex017-apk-files.txt
+          grep -q 'iransans_fanum_regular' kifnex017-apk-files.txt
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Runtime onboarding and app smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source/kifnex-preview
+          script: |
+            set -eu
+            adb install -r KifNex-0.1.0-alpha.17-full-interactive.apk
+            adb shell pm clear ir.kifnex.app
+            adb logcat -c
+            adb shell am start -n ir.kifnex.app/.MainActivity
+            sleep 5
+            adb shell uiautomator dump /sdcard/kifnex017-onboarding.xml >/dev/null
+            adb pull /sdcard/kifnex017-onboarding.xml kifnex017-onboarding.xml >/dev/null
+            grep -q 'ثبت‌نام اولیه' kifnex017-onboarding.xml
+            grep -q 'شروع ثبت' kifnex017-onboarding.xml
+            adb exec-out screencap -p > kifnex017-onboarding.png
+            adb shell am force-stop ir.kifnex.app
+            adb shell pm clear ir.kifnex.app
+            adb shell am start -n ir.kifnex.app/.MainActivity --ez kifnex_test_registered true
+            sleep 5
+            adb shell uiautomator dump /sdcard/kifnex017-home.xml >/dev/null
+            adb pull /sdcard/kifnex017-home.xml kifnex017-home.xml >/dev/null
+            grep -q 'قدرت خرید کل' kifnex017-home.xml
+            grep -q 'پرداخت' kifnex017-home.xml
+            grep -q 'اعتبار' kifnex017-home.xml
+            grep -q 'پس‌انداز' kifnex017-home.xml
+            adb exec-out screencap -p > kifnex017-home.png
+            adb logcat -d > kifnex017-logcat.txt
+            test -n "$(adb shell pidof ir.kifnex.app)"
+            ! grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex017-logcat.txt
+
+      - name: Upload validated build
+        uses: actions/upload-artifact@v4
+        with:
+          name: KifNex-0.1.0-alpha.17-full-interactive
+          path: |
+            source/kifnex-preview/KifNex-0.1.0-alpha.17-full-interactive.apk
+            source/kifnex-preview/KifNex-0.1.0-alpha.17-full-interactive.sha256
+            source/kifnex-preview/kifnex017-badging.txt
+            source/kifnex-preview/kifnex017-apk-files.txt
+            source/kifnex-preview/kifnex017-onboarding.xml
+            source/kifnex-preview/kifnex017-onboarding.png
+            source/kifnex-preview/kifnex017-home.xml
+            source/kifnex-preview/kifnex017-home.png
+            source/kifnex-preview/kifnex017-logcat.txt
+            source/kifnex-preview/iransans-build-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish status
+        if: always()
+        working-directory: buildrepo
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -e
+          git config user.name 'KifNex CI Status'
+          git config user.email 'actions@users.noreply.github.com'
+          cat > kifnex017-status.txt <<EOF
+          status=${JOB_STATUS}
+          run_id=${GITHUB_RUN_ID}
+          run_attempt=${GITHUB_RUN_ATTEMPT}
+          source_ref=${SOURCE_REF}
+          commit=${GITHUB_SHA}
+          updated=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+          git add kifnex017-status.txt
+          git commit -m "Publish KifNex Alpha17 build status" || true
+          git push
