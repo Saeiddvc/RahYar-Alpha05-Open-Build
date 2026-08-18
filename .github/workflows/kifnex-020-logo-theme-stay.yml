@@ -118,19 +118,19 @@ jobs:
               adb shell uiautomator dump /sdcard/current.xml >/dev/null
               adb pull /sdcard/current.xml current.xml >/dev/null
               python3 - "$text" <<'PY' > tap.txt
-import re,sys,xml.etree.ElementTree as ET
-text=sys.argv[1]
-root=ET.parse('current.xml').getroot()
-for n in root.iter('node'):
-    if n.attrib.get('text')==text:
-        b=n.attrib.get('bounds','')
-        m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',b)
-        if m:
-            x1,y1,x2,y2=map(int,m.groups())
-            print((x1+x2)//2,(y1+y2)//2)
-            raise SystemExit
-raise SystemExit('text not found: '+text)
-PY
+            import re,sys,xml.etree.ElementTree as ET
+            text=sys.argv[1]
+            root=ET.parse('current.xml').getroot()
+            for n in root.iter('node'):
+                if n.attrib.get('text')==text:
+                    b=n.attrib.get('bounds','')
+                    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',b)
+                    if m:
+                        x1,y1,x2,y2=map(int,m.groups())
+                        print((x1+x2)//2,(y1+y2)//2)
+                        raise SystemExit
+            raise SystemExit('text not found: '+text)
+            PY
               read x y < tap.txt
               adb shell input tap "$x" "$y"
               sleep 2
