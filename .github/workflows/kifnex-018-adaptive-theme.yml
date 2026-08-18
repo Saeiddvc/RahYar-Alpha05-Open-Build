@@ -1,4 +1,4 @@
-name: KifNex 0.1.0-alpha.19 Adaptive Theme + System Bars
+name: KifNex 0.1.0-alpha.20 Logo + Persistent Appearance
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 env:
   SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
-  SOURCE_REF: kifnex-alpha19-android
+  SOURCE_REF: kifnex-alpha20-android
 
 jobs:
   build-and-smoke:
@@ -35,6 +35,14 @@ jobs:
           token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
           path: source
           fetch-depth: 1
+      - name: Apply Alpha20 UI fixes
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          python3 patch_alpha20.py
+          grep -q 'showAppearancePage' app/src/main/java/ir/kifnex/app/MainActivity.java
+          grep -q 'drawFinancialNode' app/src/main/java/ir/kifnex/app/MainActivity.java
+          grep -q 'applySystemBars' app/src/main/java/ir/kifnex/app/MainActivity.java
       - name: Setup Java 17
         uses: actions/setup-java@v5
         with:
@@ -58,16 +66,16 @@ jobs:
         run: |
           set -euo pipefail
           gradle :app:assembleDebug --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk KifNex-0.1.0-alpha.19-adaptive-theme.apk
-          sha256sum KifNex-0.1.0-alpha.19-adaptive-theme.apk > KifNex-0.1.0-alpha.19-adaptive-theme.sha256
+          cp app/build/outputs/apk/debug/app-debug.apk KifNex-0.1.0-alpha.20-logo-theme-stay.apk
+          sha256sum KifNex-0.1.0-alpha.20-logo-theme-stay.apk > KifNex-0.1.0-alpha.20-logo-theme-stay.sha256
       - name: Verify identity
         working-directory: source/kifnex-preview
         run: |
           set -euo pipefail
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
-          "$AAPT" dump badging KifNex-0.1.0-alpha.19-adaptive-theme.apk > kifnex019-badging.txt
-          grep -q "package: name='ir.kifnex.app'" kifnex019-badging.txt
-          grep -q "versionName='0.1.0-alpha.19'" kifnex019-badging.txt
+          "$AAPT" dump badging KifNex-0.1.0-alpha.20-logo-theme-stay.apk > kifnex020-badging.txt
+          grep -q "package: name='ir.kifnex.app'" kifnex020-badging.txt
+          grep -q "versionName='0.1.0-alpha.20'" kifnex020-badging.txt
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -85,39 +93,40 @@ jobs:
           working-directory: source/kifnex-preview
           script: |
             set -eu
-            adb install -r KifNex-0.1.0-alpha.19-adaptive-theme.apk
+            adb install -r KifNex-0.1.0-alpha.20-logo-theme-stay.apk
             adb shell pm clear ir.kifnex.app
             adb shell cmd uimode night no
             adb shell am start -n ir.kifnex.app/.MainActivity --ez kifnex_test_registered true
             sleep 4
-            adb shell uiautomator dump /sdcard/kifnex019-light.xml >/dev/null
-            adb pull /sdcard/kifnex019-light.xml kifnex019-light.xml >/dev/null
-            grep -q 'قدرت خرید کل' kifnex019-light.xml
-            adb exec-out screencap -p > kifnex019-light.png
+            adb shell uiautomator dump /sdcard/kifnex020-light.xml >/dev/null
+            adb pull /sdcard/kifnex020-light.xml kifnex020-light.xml >/dev/null
+            grep -q 'قدرت خرید کل' kifnex020-light.xml
+            adb exec-out screencap -p > kifnex020-light.png
             adb shell am force-stop ir.kifnex.app
             adb shell cmd uimode night yes
             adb shell am start -n ir.kifnex.app/.MainActivity
             sleep 4
-            adb shell uiautomator dump /sdcard/kifnex019-dark.xml >/dev/null
-            adb pull /sdcard/kifnex019-dark.xml kifnex019-dark.xml >/dev/null
-            grep -q 'قدرت خرید کل' kifnex019-dark.xml
-            adb exec-out screencap -p > kifnex019-dark.png
-            adb logcat -d > kifnex019-logcat.txt
+            adb shell uiautomator dump /sdcard/kifnex020-dark.xml >/dev/null
+            adb pull /sdcard/kifnex020-dark.xml kifnex020-dark.xml >/dev/null
+            grep -q 'قدرت خرید کل' kifnex020-dark.xml
+            adb exec-out screencap -p > kifnex020-dark.png
+            adb logcat -d > kifnex020-logcat.txt
             test -n "$(adb shell pidof ir.kifnex.app)"
-            ! grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex019-logcat.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex020-logcat.txt
       - name: Upload validated build
         uses: actions/upload-artifact@v4
         with:
-          name: KifNex-0.1.0-alpha.19-adaptive-theme
+          name: KifNex-0.1.0-alpha.20-logo-theme-stay
           path: |
-            source/kifnex-preview/KifNex-0.1.0-alpha.19-adaptive-theme.apk
-            source/kifnex-preview/KifNex-0.1.0-alpha.19-adaptive-theme.sha256
-            source/kifnex-preview/kifnex019-badging.txt
-            source/kifnex-preview/kifnex019-light.xml
-            source/kifnex-preview/kifnex019-light.png
-            source/kifnex-preview/kifnex019-dark.xml
-            source/kifnex-preview/kifnex019-dark.png
-            source/kifnex-preview/kifnex019-logcat.txt
+            source/kifnex-preview/KifNex-0.1.0-alpha.20-logo-theme-stay.apk
+            source/kifnex-preview/KifNex-0.1.0-alpha.20-logo-theme-stay.sha256
+            source/kifnex-preview/kifnex020-badging.txt
+            source/kifnex-preview/kifnex020-light.xml
+            source/kifnex-preview/kifnex020-light.png
+            source/kifnex-preview/kifnex020-dark.xml
+            source/kifnex-preview/kifnex020-dark.png
+            source/kifnex-preview/kifnex020-logcat.txt
+            source/kifnex-preview/app/src/main/java/ir/kifnex/app/MainActivity.java
           retention-days: 14
       - name: Publish status
         if: always()
@@ -128,12 +137,13 @@ jobs:
           set -e
           git config user.name 'KifNex CI Status'
           git config user.email 'actions@users.noreply.github.com'
-          cat > kifnex019-status.txt <<EOF
+          git pull --rebase || true
+          cat > kifnex020-status.txt <<EOF
           status=${JOB_STATUS}
           run_id=${GITHUB_RUN_ID}
           source_ref=${SOURCE_REF}
           updated=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           EOF
-          git add kifnex019-status.txt
-          git commit -m 'Publish KifNex Alpha19 status' || true
-          git push
+          git add kifnex020-status.txt
+          git commit -m 'Publish KifNex Alpha20 status' || true
+          git push || true
