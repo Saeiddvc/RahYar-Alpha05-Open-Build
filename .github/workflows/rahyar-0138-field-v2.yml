@@ -1,0 +1,195 @@
+name: RahYar 0.13.8 Field Gate v2
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0138-field-v2-trigger.txt'
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-stability-0138
+
+jobs:
+  field-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Generate 0.13.8 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+
+      - name: Source acceptance
+        working-directory: source
+        run: |
+          set -euo pipefail
+          grep -q 'versionName = "0.13.8-alpha-p0"' app/build.gradle.kts
+          grep -q 'versionCode = 35' app/build.gradle.kts
+          grep -q '@Override public void onInit(int status)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'iconRotationAlignment("viewport")' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'frameNow - lastEmitElapsed >= 16' app/src/main/java/ir/rahyar/app/RahYarNavigationMotionController.java
+          grep -q 'v3-active-casing' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'FREE_DRIVE_UI' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'NAV_WEATHER_VISIBLE' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'OVERVIEW_COMPACT' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'setContextLabel("جلوتر")' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'UV —' app/src/main/java/ir/rahyar/app/RahYarWeatherWidget.java
+          grep -q 'aqiLabel' app/src/main/java/ir/rahyar/app/RahYarWeatherWidget.java
+          ! grep -q 'RahYarTypography.bold()' app/src/main/java/ir/rahyar/app/RahYarWeatherWidget.java
+          ! grep -q 'weatherWidget.setVisibility(View.GONE)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+
+      - name: Compile and sign
+        working-directory: source
+        run: |
+          set -euo pipefail
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk unsigned.apk
+          zip -d unsigned.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
+          BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BT/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
+          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0138 -keypass rahyar0138 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar 0138 Field CI, OU=QA, O=RahYar, L=Tehran, C=IR'
+          "$BT/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0138 --key-pass pass:rahyar0138 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.13.8-alpha-p0-functional.apk aligned.apk
+          "$BT/apksigner" verify --verbose --print-certs RahYar-0.13.8-alpha-p0-functional.apk > RahYar-0.13.8-signing.txt
+          "$BT/zipalign" -P 16 -c -v 4 RahYar-0.13.8-alpha-p0-functional.apk > RahYar-0.13.8-alignment.txt
+          sha256sum RahYar-0.13.8-alpha-p0-functional.apk > RahYar-0.13.8.sha256
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulator field gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save
+          disable-animations: true
+          working-directory: source
+          script: |
+            set -euo pipefail
+            adb wait-for-device
+            adb install -r RahYar-0.13.8-alpha-p0-functional.apk
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
+            for i in $(seq 1 100); do adb logcat -d | grep -q 'PASS FREE_DRIVE_UI' && break; sleep .15; done
+            adb exec-out screencap -p > RahYar-0.13.8-free-drive.png || true
+            for i in $(seq 1 100); do adb logcat -d | grep -q 'PASS NAV_WEATHER_VISIBLE' && break; sleep .15; done
+            adb exec-out screencap -p > RahYar-0.13.8-navigation.png || true
+            sleep 7
+            adb logcat -d > RahYar-0.13.8-logcat.txt
+            grep RahYarSim RahYar-0.13.8-logcat.txt > RahYar-0.13.8-simulation.txt || true
+            cat RahYar-0.13.8-simulation.txt
+            grep -q 'PASS FREE_DRIVE_UI' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS NAVIGATION' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS HEADING_ROUTE_ALIGNED' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS NAV_WEATHER_VISIBLE' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS REPORT_MAP_FEEDBACK' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS OVERVIEW_COMPACT' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS OVERVIEW_MAP_TAP_DISMISS' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS STOP_CONTROL' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS POST_TRIP_FEEDBACK' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS FEEDBACK_SAVE' RahYar-0.13.8-simulation.txt
+            grep -q 'PASS OFFLINE_ACTIVITY' RahYar-0.13.8-simulation.txt
+            grep -q 'COMPLETE' RahYar-0.13.8-simulation.txt
+            ! grep -q 'FAIL' RahYar-0.13.8-simulation.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.13.8-logcat.txt
+            test -n "$(adb shell pidof ir.rahyar.app)"
+            adb exec-out screencap -p > RahYar-0.13.8-final-screen.png || true
+
+      - name: Validation
+        if: success()
+        working-directory: source
+        run: |
+          cat > Validation-0.13.8.txt <<'EOF'
+          RahYar 0.13.8 Alpha P0 - Field Gate v2
+          ======================================
+          PASS: build compiled from exact generated 0.13.7 baseline plus 0.13.8 fixes.
+          PASS: free-drive UI visible with moving synthetic GNSS.
+          PASS: navigation weather stack visible.
+          PASS: viewport-aligned vehicle marker; camera owns heading-up rotation.
+          PASS: 16 ms motion-frame cadence and overlapping GNSS interpolation configuration.
+          PASS: bold active route casing.
+          PASS: compact map-dominant route overview.
+          PASS: report map feedback, tap-away, route stop, post-trip feedback, offline activity.
+          NOTE: road names, live weather, UV/AQI and Persian TTS depend on real provider/device availability; no fabricated live fallback is used.
+          EOF
+          cat RahYar-0.13.8.sha256 >> Validation-0.13.8.txt
+
+      - name: Upload candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.13.8-alpha-p0-field-v2
+          path: |
+            source/RahYar-0.13.8-alpha-p0-functional.apk
+            source/RahYar-0.13.8.sha256
+            source/Validation-0.13.8.txt
+            source/RahYar-0.13.8-signing.txt
+            source/RahYar-0.13.8-alignment.txt
+            source/RahYar-0.13.8-simulation.txt
+            source/RahYar-0.13.8-logcat.txt
+            source/RahYar-0.13.8-free-drive.png
+            source/RahYar-0.13.8-navigation.png
+            source/RahYar-0.13.8-final-screen.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf 'run_id=%s\nrun_number=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ github.run_number }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.13.8-alpha-p0-field-v2' > /tmp/status.txt
+          b64=$(base64 -w0 /tmp/status.txt); api="repos/${{ github.repository }}/contents/status/rahyar-0138-field-v2.txt"; sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.13.8 field v2 status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.13.8 field v2 status' -f content="$b64" >/dev/null; fi
