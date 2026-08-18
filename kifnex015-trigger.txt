@@ -1,1 +1,1 @@
-KifNex 0.1.0-alpha.15 initial Android delivery trigger — 2026-08-18 — run 3
+KifNex 0.1.0-alpha.16 full interactive Android delivery trigger — 2026-08-18
