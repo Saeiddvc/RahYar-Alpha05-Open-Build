@@ -1,4 +1,4 @@
-name: KifNex 0.1.0-alpha.15 Initial Android
+name: KifNex 0.1.0-alpha.16 Full Interactive Android
 
 on:
   push:
@@ -24,12 +24,7 @@ jobs:
           path: buildrepo
           fetch-depth: 1
 
-      - name: Require private source token
-        env:
-          SOURCE_TOKEN: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
-        run: test -n "$SOURCE_TOKEN"
-
-      - name: Checkout private KifNex source branch
+      - name: Checkout private KifNex source
         uses: actions/checkout@v4
         with:
           repository: ${{ env.SOURCE_REPO }}
@@ -38,57 +33,43 @@ jobs:
           path: source
           fetch-depth: 1
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
 
-      - name: Prepare IRANSans product typography
+      - name: Apply Alpha16 and prepare IRANSans
         working-directory: source/kifnex-preview
         run: |
           set -euo pipefail
+          python apply_alpha16.py
+          grep -q 'ثبت‌نام و تأیید شماره موبایل' app/src/main/java/ir/kifnex/app/MainActivity.java
+          grep -q 'تأمین هوشمند کسری پرداخت' app/src/main/java/ir/kifnex/app/MainActivity.java
+          grep -q 'جزئیات هزینه' app/src/main/java/ir/kifnex/app/MainActivity.java
           mkdir -p app/src/main/res/font
-          curl -fL --retry 3 --connect-timeout 15 \
-            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' \
-            -o app/src/main/res/font/iransans_fanum_regular.ttf
-          curl -fL --retry 3 --connect-timeout 15 \
-            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' \
-            -o app/src/main/res/font/iransans_fanum_medium.ttf
-          curl -fL --retry 3 --connect-timeout 15 \
-            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' \
-            -o app/src/main/res/font/iransans_fanum_bold.ttf
-          file app/src/main/res/font/*.ttf
-          fc-scan --format='%{family}\n' app/src/main/res/font/iransans_fanum_regular.ttf | tee iransans-family.txt
-          grep -qi 'IRANSans' iransans-family.txt
-          sha256sum app/src/main/res/font/*.ttf | tee iransans-build-sha256.txt
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' -o app/src/main/res/font/iransans_fanum_regular.ttf
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' -o app/src/main/res/font/iransans_fanum_medium.ttf
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' -o app/src/main/res/font/iransans_fanum_bold.ttf
+          fc-scan --format='%{family}\n' app/src/main/res/font/iransans_fanum_regular.ttf | grep -qi IRANSans
+          sha256sum app/src/main/res/font/*.ttf > iransans-build-sha256.txt
 
-      - name: Compile KifNex APK
+      - name: Compile and verify APK
         working-directory: source/kifnex-preview
         run: |
           set -euo pipefail
           gradle :app:assembleDebug --stacktrace
-          APK=app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"
-          cp "$APK" KifNex-0.1.0-alpha.15-initial-android.apk
-          sha256sum KifNex-0.1.0-alpha.15-initial-android.apk > KifNex-0.1.0-alpha.15-initial-android.sha256
-
-      - name: Verify APK identity
-        working-directory: source/kifnex-preview
-        run: |
-          set -euo pipefail
-          APK=KifNex-0.1.0-alpha.15-initial-android.apk
+          cp app/build/outputs/apk/debug/app-debug.apk KifNex-0.1.0-alpha.16-full-interactive-demo.apk
+          sha256sum KifNex-0.1.0-alpha.16-full-interactive-demo.apk > KifNex-0.1.0-alpha.16-full-interactive-demo.sha256
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
-          "$AAPT" dump badging "$APK" > kifnex-badging.txt
-          grep -q "package: name='ir.kifnex.app'" kifnex-badging.txt
-          grep -q "application-label:'کیف‌نکس'" kifnex-badging.txt
-          grep -q "versionName='0.1.0-alpha.15'" kifnex-badging.txt
-          unzip -l "$APK" > kifnex-apk-files.txt
+          "$AAPT" dump badging KifNex-0.1.0-alpha.16-full-interactive-demo.apk > kifnex-alpha16-badging.txt
+          grep -q "package: name='ir.kifnex.app'" kifnex-alpha16-badging.txt
+          grep -q "application-label:'کیف‌نکس'" kifnex-alpha16-badging.txt
+          grep -q "versionName='0.1.0-alpha.16'" kifnex-alpha16-badging.txt
+          unzip -l KifNex-0.1.0-alpha.16-full-interactive-demo.apk > kifnex-alpha16-apk-files.txt
 
       - name: Enable KVM
         run: |
@@ -96,7 +77,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Runtime smoke test
+      - name: Android 15 first-registration smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -108,31 +89,36 @@ jobs:
           working-directory: source/kifnex-preview
           script: |
             set -e
-            adb install -r KifNex-0.1.0-alpha.15-initial-android.apk
+            adb install -r KifNex-0.1.0-alpha.16-full-interactive-demo.apk
+            adb shell pm clear ir.kifnex.app
             adb logcat -c
             adb shell am start -n ir.kifnex.app/.MainActivity
-            sleep 8
+            sleep 6
             test -n "$(adb shell pidof ir.kifnex.app)"
-            adb exec-out screencap -p > kifnex-alpha15-home.png
-            adb logcat -d > kifnex-alpha15-logcat.txt
-            ! grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex-alpha15-logcat.txt
+            adb shell uiautomator dump /sdcard/kifnex16.xml >/dev/null
+            adb pull /sdcard/kifnex16.xml kifnex-alpha16-registration.xml >/dev/null
+            grep -q 'ثبت' kifnex-alpha16-registration.xml
+            adb exec-out screencap -p > kifnex-alpha16-registration.png
+            adb logcat -d > kifnex-alpha16-logcat.txt
+            if grep -q 'FATAL EXCEPTION.*ir.kifnex.app' kifnex-alpha16-logcat.txt; then exit 1; fi
 
-      - name: Upload validated KifNex Android build
+      - name: Upload validated KifNex Alpha16
         uses: actions/upload-artifact@v4
         with:
-          name: KifNex-0.1.0-alpha.15-initial-android
+          name: KifNex-0.1.0-alpha.16-full-interactive-demo
           path: |
-            source/kifnex-preview/KifNex-0.1.0-alpha.15-initial-android.apk
-            source/kifnex-preview/KifNex-0.1.0-alpha.15-initial-android.sha256
-            source/kifnex-preview/kifnex-badging.txt
-            source/kifnex-preview/kifnex-apk-files.txt
-            source/kifnex-preview/kifnex-alpha15-home.png
-            source/kifnex-preview/kifnex-alpha15-logcat.txt
+            source/kifnex-preview/KifNex-0.1.0-alpha.16-full-interactive-demo.apk
+            source/kifnex-preview/KifNex-0.1.0-alpha.16-full-interactive-demo.sha256
+            source/kifnex-preview/kifnex-alpha16-badging.txt
+            source/kifnex-preview/kifnex-alpha16-apk-files.txt
+            source/kifnex-preview/kifnex-alpha16-registration.png
+            source/kifnex-preview/kifnex-alpha16-registration.xml
+            source/kifnex-preview/kifnex-alpha16-logcat.txt
             source/kifnex-preview/iransans-build-sha256.txt
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish build status and run id
+      - name: Publish Alpha16 status
         if: always()
         working-directory: buildrepo
         env:
@@ -141,14 +127,12 @@ jobs:
           set -e
           git config user.name 'KifNex CI Status'
           git config user.email 'actions@users.noreply.github.com'
-          cat > kifnex015-status.txt <<EOF
+          cat > kifnex016final-status.txt <<EOF
           status=${JOB_STATUS}
           run_id=${GITHUB_RUN_ID}
-          run_attempt=${GITHUB_RUN_ATTEMPT}
           source_ref=${SOURCE_REF}
-          commit=${GITHUB_SHA}
           updated=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           EOF
-          git add kifnex015-status.txt
-          git commit -m "Publish KifNex Alpha15 Android build status" || true
+          git add kifnex016final-status.txt
+          git commit -m 'Publish KifNex Alpha16 final build status' || true
           git push
