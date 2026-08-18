@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - 'kifnex016-trigger.txt'
+  pull_request:
+    paths:
+      - 'kifnex016-trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -152,7 +155,7 @@ jobs:
           retention-days: 14
 
       - name: Publish build status and run id
-        if: always()
+        if: always() && github.event_name == 'push'
         working-directory: buildrepo
         env:
           JOB_STATUS: ${{ job.status }}
