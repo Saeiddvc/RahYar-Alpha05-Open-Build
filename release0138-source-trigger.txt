@@ -1,1 +1,1 @@
-Generate exact RahYar 0.13.7 patched source as baseline for 0.13.8 integration.
+Generate exact RahYar 0.13.7 patched source as baseline for 0.13.8 integration. Retry with status publisher.
