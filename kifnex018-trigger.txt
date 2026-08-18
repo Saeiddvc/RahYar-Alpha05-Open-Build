@@ -1,1 +1,1 @@
-KifNex 0.1.0-alpha.19 adaptive theme + Android 15 system bars trigger — 2026-08-18
+KifNex 0.1.0-alpha.20 logo correction + appearance page persistence trigger — 2026-08-18
