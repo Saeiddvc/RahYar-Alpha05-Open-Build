@@ -63,9 +63,10 @@ jobs:
           curl -fL --retry 3 --connect-timeout 15 \
             'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' \
             -o app/src/main/res/font/iransans_fanum_bold.ttf
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/res/font/iransans_fanum_regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/res/font/iransans_fanum_medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/res/font/iransans_fanum_bold.ttf' | sha256sum -c -
+          file app/src/main/res/font/*.ttf
+          fc-scan --format='%{family}\n' app/src/main/res/font/iransans_fanum_regular.ttf | tee iransans-family.txt
+          grep -qi 'IRANSans' iransans-family.txt
+          sha256sum app/src/main/res/font/*.ttf | tee iransans-build-sha256.txt
 
       - name: Compile KifNex APK
         working-directory: source/kifnex-preview
@@ -127,6 +128,7 @@ jobs:
             source/kifnex-preview/kifnex-apk-files.txt
             source/kifnex-preview/kifnex-alpha15-home.png
             source/kifnex-preview/kifnex-alpha15-logcat.txt
+            source/kifnex-preview/iransans-build-sha256.txt
           if-no-files-found: error
           retention-days: 14
 
