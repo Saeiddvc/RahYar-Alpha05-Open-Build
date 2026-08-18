@@ -1,0 +1,6 @@
+status=failure
+run_id=32093536297
+run_attempt=1
+source_ref=kifnex-alpha15-android
+commit=89e1ba88fdd7659e3233efba82d52cf74afebaa8
+updated=2026-08-18T02:55:15Z
