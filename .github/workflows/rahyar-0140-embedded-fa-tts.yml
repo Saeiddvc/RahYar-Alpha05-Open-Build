@@ -1,0 +1,180 @@
+name: RahYar 0.14.0 Embedded Persian TTS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0140-tts-trigger.txt'
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-embedded-fa-tts-0140
+
+jobs:
+  embedded-fa-tts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Generate 0.14.0 source and embed Persian voice
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/stage_rahyar_0140_embedded_tts.py
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+          python tools/apply_rahyar_0139_ui_behavior.py
+          python tools/apply_rahyar_0140_embedded_tts.py
+
+      - name: Embedded voice source gates
+        working-directory: source
+        run: |
+          set -euo pipefail
+          grep -q 'versionName = "0.14.0-alpha-p0"' app/build.gradle.kts
+          grep -q 'versionCode = 37' app/build.gradle.kts
+          grep -q 'RahYarEmbeddedPersianTts embeddedTts' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'PASS EMBEDDED_FA_TTS' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          ! grep -q 'TextToSpeech' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          test -s app/libs/sherpa-onnx-1.13.4.aar
+          test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx
+          test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/tokens.txt
+          test -d app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/espeak-ng-data
+          echo 'fb815380d969ea372b0b21b0de14421f58fe481047e153e69685d079b6e1a9d1  app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx' | sha256sum -c -
+          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+
+      - name: Compile align sign
+        working-directory: source
+        run: |
+          set -euo pipefail
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk unsigned.apk
+          zip -d unsigned.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
+          BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BT/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
+          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0140 -keypass rahyar0140 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar 0140 Embedded Voice CI, OU=QA, O=RahYar, C=IR'
+          "$BT/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0140 --key-pass pass:rahyar0140 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.14.0-alpha-p0.apk aligned.apk
+          "$BT/apksigner" verify --verbose --print-certs RahYar-0.14.0-alpha-p0.apk > RahYar-0.14.0-signing.txt
+          "$BT/zipalign" -P 16 -c -v 4 RahYar-0.14.0-alpha-p0.apk > RahYar-0.14.0-alignment.txt
+          sha256sum RahYar-0.14.0-alpha-p0.apk > RahYar-0.14.0.sha256
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulator self-contained Persian voice gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save
+          disable-animations: true
+          working-directory: source
+          script: |
+            adb wait-for-device
+            adb install -r RahYar-0.14.0-alpha-p0.apk
+            adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
+            for i in $(seq 1 600); do adb logcat -d | grep -q 'PASS EMBEDDED_FA_TTS samples=' && break; sleep .2; done
+            adb logcat -d > RahYar-0.14.0-logcat.txt
+            grep RahYarSim RahYar-0.14.0-logcat.txt > RahYar-0.14.0-simulation.txt || true
+            grep RahYarEmbeddedTts RahYar-0.14.0-logcat.txt > RahYar-0.14.0-embedded-tts.txt || true
+            cat RahYar-0.14.0-embedded-tts.txt
+            cat RahYar-0.14.0-simulation.txt
+            grep -q 'PASS EMBEDDED_FA_TTS_READY' RahYar-0.14.0-embedded-tts.txt
+            grep -q 'PASS EMBEDDED_FA_TTS samples=' RahYar-0.14.0-simulation.txt
+            grep -q 'PASS COMPASS_VISIBLE' RahYar-0.14.0-simulation.txt
+            grep -q 'PASS SUN_TIMES_VISIBLE' RahYar-0.14.0-simulation.txt
+            grep -q 'PASS WEATHER_TAP_DISMISS' RahYar-0.14.0-simulation.txt
+            grep -q 'PASS THEME_DARK_APPLIED' RahYar-0.14.0-simulation.txt
+            ! grep -q 'EMBEDDED_TTS_FAILED' RahYar-0.14.0-simulation.txt
+            ! grep -q 'Embedded Persian TTS init failed' RahYar-0.14.0-logcat.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.14.0-logcat.txt
+            test -n "$(adb shell pidof ir.rahyar.app)"
+
+      - name: Write validation
+        working-directory: source
+        run: |
+          cat > Validation-0.14.0.txt <<'EOF'
+          RahYar 0.14.0 Alpha P0 - Self-contained Persian Voice
+          =====================================================
+          PASS Persian fa_IR model is embedded in the APK.
+          PASS sherpa-onnx offline runtime is embedded in the APK.
+          PASS RahYar V3 has no Android TextToSpeech dependency.
+          PASS emulator synthesis while system Google TTS is disabled.
+          PASS generated Persian audio sample count/sample rate gate.
+          PASS v1/v2/v3 signing and 16KiB zip alignment.
+          Model: vits-piper-fa_IR-amir-medium (22.05 kHz).
+          User action required after install: none for Persian navigation speech.
+          EOF
+          cat RahYar-0.14.0.sha256 >> Validation-0.14.0.txt
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.14.0-alpha-p0-embedded-fa-tts
+          path: |
+            source/RahYar-0.14.0-alpha-p0.apk
+            source/RahYar-0.14.0.sha256
+            source/RahYar-0.14.0-signing.txt
+            source/RahYar-0.14.0-alignment.txt
+            source/RahYar-0.14.0-simulation.txt
+            source/RahYar-0.14.0-embedded-tts.txt
+            source/Validation-0.14.0.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.0-alpha-p0-embedded-fa-tts' > /tmp/status.txt
+          b64=$(base64 -w0 /tmp/status.txt); api="repos/${{ github.repository }}/contents/status/rahyar-0140-tts.txt"; sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.0 TTS status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.0 TTS status' -f content="$b64" >/dev/null; fi
