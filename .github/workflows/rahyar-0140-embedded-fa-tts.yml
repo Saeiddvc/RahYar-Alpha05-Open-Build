@@ -79,7 +79,7 @@ jobs:
           test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx
           test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/tokens.txt
           test -d app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/espeak-ng-data
-          echo 'fb815380d969ea372b0b21b0de14421f58fe481047e153e69685d079b6e1a9d1  app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx' | sha256sum -c -
+          echo 'ec6cf5d89067fcf72c410206d42b83ebaf95ee8219ecd169c85c6868a2ab977c  app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx' | sha256sum -c -
           test ! -e app/src/main/assets/fonts/b_traffic.ttf
 
       - name: Compile align sign
