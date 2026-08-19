@@ -1,0 +1,176 @@
+name: KifNex 0.1.0-alpha.27 Direct SMS Pilot
+
+on:
+  push:
+    paths:
+      - 'kifnex027-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REF: kifnex-alpha27-android
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: buildrepo
+      - uses: actions/checkout@v4
+        with:
+          repository: Saeiddvc/SaeidNavigator-Android
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply KifNex source patches
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          python3 patch_alpha20.py
+          python3 patch_alpha21.py
+          python3 patch_alpha22.py
+          python3 patch_alpha22b.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha23.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha23_ui.py
+          python3 patch_alpha24.py || true
+          python3 patch_alpha24_datafix.py
+          python3 patch_alpha24b_hotfix.py
+          python3 patch_alpha24b.py
+          python3 patch_alpha24_ui.py
+          python3 patch_alpha24_dialogstack.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha25_investmentlab.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha26_realdata.py
+          python3 patch_alpha26_testentry.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha27_directsms.py
+          python3 patch_alpha21_compilefix.py
+          grep -q 'RECEIVE_SMS' app/src/main/AndroidManifest.xml
+          grep -q 'requestPermissions(new String\[\]{Manifest.permission.RECEIVE_SMS}' app/src/main/java/ir/kifnex/app/MainActivity.java
+
+      - name: Prepare signing and font for build only
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          openssl pkcs12 -export -inkey kifnex-alpha-test-key.pem -in kifnex-alpha-test-cert.pem -name kifnex-alpha -out kifnex-alpha-test.p12 -passout pass:kifnexAlpha2026
+          rm -f app/kifnex-alpha-test.keystore
+          keytool -importkeystore -srckeystore kifnex-alpha-test.p12 -srcstoretype PKCS12 -srcstorepass kifnexAlpha2026 -srcalias kifnex-alpha -destkeystore app/kifnex-alpha-test.keystore -deststoretype JKS -deststorepass kifnexAlpha2026 -destkeypass kifnexAlpha2026 -destalias kifnex-alpha -noprompt
+          mkdir -p app/src/main/res/font
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' -o app/src/main/res/font/iransans_fanum_regular.ttf
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' -o app/src/main/res/font/iransans_fanum_medium.ttf
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' -o app/src/main/res/font/iransans_fanum_bold.ttf
+
+      - name: Deterministic engine tests
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          rm -rf pure-out && mkdir pure-out
+          javac -d pure-out app/src/main/java/ir/kifnex/app/InvestmentCalculator.java app/src/main/java/ir/kifnex/app/InvestmentCatalog.java app/src/main/java/ir/kifnex/app/BankSmsAnalyzer.java app/src/main/java/ir/kifnex/app/PersianNameValidator.java calculator-tests/ir/kifnex/app/InvestmentCalculatorTest.java parser-tests/ir/kifnex/app/BankSmsAnalyzerTest.java parser-tests/ir/kifnex/app/PersianNameValidatorTest.java
+          java -cp pure-out ir.kifnex.app.InvestmentCalculatorTest | tee kifnex027-calculator-tests.txt
+          java -cp pure-out ir.kifnex.app.BankSmsAnalyzerTest | tee kifnex027-bank-parser-tests.txt
+          java -cp pure-out ir.kifnex.app.PersianNameValidatorTest | tee kifnex027-name-tests.txt
+          grep -q PASSED kifnex027-calculator-tests.txt
+          grep -q PASSED kifnex027-bank-parser-tests.txt
+          grep -q PASSED kifnex027-name-tests.txt
+
+      - name: Build and verify APK
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk KifNex-0.1.0-alpha.27-directsms-pilot.apk
+          sha256sum KifNex-0.1.0-alpha.27-directsms-pilot.apk > KifNex-0.1.0-alpha.27-directsms-pilot.sha256
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging KifNex-0.1.0-alpha.27-directsms-pilot.apk > kifnex027-badging.txt
+          "$AAPT" dump permissions KifNex-0.1.0-alpha.27-directsms-pilot.apk > kifnex027-permissions.txt
+          grep -q "versionName='0.1.0-alpha.27'" kifnex027-badging.txt
+          grep -q 'android.permission.RECEIVE_SMS' kifnex027-permissions.txt
+          ! grep -q 'android.permission.READ_SMS' kifnex027-permissions.txt
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs KifNex-0.1.0-alpha.27-directsms-pilot.apk > kifnex027-cert.txt
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Android 15 runtime and permission smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source/kifnex-preview
+          script: |
+            bash -lc 'set -euo pipefail
+            adb install -r KifNex-0.1.0-alpha.27-directsms-pilot.apk
+            adb shell pm clear ir.kifnex.app
+            adb shell pm grant ir.kifnex.app android.permission.RECEIVE_SMS
+            adb shell am start -n ir.kifnex.app/.MainActivity --ez kifnex_test_registered true --ez kifnex_test_bank_sample true
+            sleep 5
+            adb shell dumpsys package ir.kifnex.app > kifnex027-package.txt
+            grep -q "android.permission.RECEIVE_SMS: granted=true" kifnex027-package.txt
+            grep -q FinancialSmsReceiver kifnex027-package.txt
+            adb shell uiautomator dump /sdcard/kifnex027.xml >/dev/null
+            adb pull /sdcard/kifnex027.xml kifnex027.xml >/dev/null
+            grep -q "تراکنش‌های بانکی" kifnex027.xml
+            grep -q "دریافت مستقیم پیامک فعال است" kifnex027.xml
+            grep -q "بانک سامان" kifnex027.xml
+            adb exec-out screencap -p > kifnex027-bank-sms.png
+            adb logcat -d > kifnex027-logcat.txt
+            test -n "$(adb shell pidof ir.kifnex.app)"
+            ! grep -q "FATAL EXCEPTION.*ir.kifnex.app" kifnex027-logcat.txt'
+
+      - name: Upload Alpha27
+        uses: actions/upload-artifact@v4
+        with:
+          name: KifNex-0.1.0-alpha.27-directsms-pilot
+          path: |
+            source/kifnex-preview/KifNex-0.1.0-alpha.27-directsms-pilot.apk
+            source/kifnex-preview/KifNex-0.1.0-alpha.27-directsms-pilot.sha256
+            source/kifnex-preview/kifnex027-cert.txt
+            source/kifnex-preview/kifnex027-badging.txt
+            source/kifnex-preview/kifnex027-permissions.txt
+            source/kifnex-preview/kifnex027-calculator-tests.txt
+            source/kifnex-preview/kifnex027-bank-parser-tests.txt
+            source/kifnex-preview/kifnex027-name-tests.txt
+            source/kifnex-preview/kifnex027-bank-sms.png
+            source/kifnex-preview/kifnex027.xml
+            source/kifnex-preview/kifnex027-package.txt
+            source/kifnex-preview/kifnex027-logcat.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish status
+        if: always()
+        working-directory: buildrepo
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -e
+          git config user.name 'KifNex CI Status'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase || true
+          printf 'status=%s\nrun_id=%s\nsource_ref=%s\n' "$JOB_STATUS" "$GITHUB_RUN_ID" "$SOURCE_REF" > kifnex027-status.txt
+          git add kifnex027-status.txt
+          git commit -m 'Publish KifNex Alpha27 status' || true
+          git push || true
