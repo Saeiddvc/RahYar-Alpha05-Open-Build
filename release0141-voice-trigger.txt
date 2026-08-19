@@ -1,1 +1,1 @@
-trigger 2026-08-19 RahYar 0.14.1 fully self-contained Persian voice v1
+trigger 2026-08-19 RahYar 0.14.1 fully self-contained Persian voice v2 workflow-registered
