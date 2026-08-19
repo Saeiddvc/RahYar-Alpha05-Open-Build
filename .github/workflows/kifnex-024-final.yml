@@ -47,6 +47,7 @@ jobs:
           python3 patch_alpha23_ui.py
           python3 patch_alpha24.py || true
           python3 patch_alpha24_datafix.py
+          python3 patch_alpha24b_hotfix.py
           python3 patch_alpha24b.py
           python3 patch_alpha24_ui.py
           python3 patch_alpha21_compilefix.py
