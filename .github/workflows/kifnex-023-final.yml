@@ -43,6 +43,7 @@ jobs:
           python3 patch_alpha22b.py
           python3 patch_alpha21_compilefix.py
           python3 patch_alpha23.py
+          python3 patch_alpha21_compilefix.py
           openssl pkcs12 -export -inkey kifnex-alpha-test-key.pem -in kifnex-alpha-test-cert.pem -name kifnex-alpha -out kifnex-alpha-test.p12 -passout pass:kifnexAlpha2026
           rm -f app/kifnex-alpha-test.keystore
           keytool -importkeystore -srckeystore kifnex-alpha-test.p12 -srcstoretype PKCS12 -srcstorepass kifnexAlpha2026 -srcalias kifnex-alpha -destkeystore app/kifnex-alpha-test.keystore -deststoretype JKS -deststorepass kifnexAlpha2026 -destkeypass kifnexAlpha2026 -destalias kifnex-alpha -noprompt
