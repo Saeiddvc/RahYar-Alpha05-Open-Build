@@ -1,0 +1,3 @@
+status=failure
+run_id=32301510336
+source_ref=kifnex-alpha26-android
