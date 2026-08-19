@@ -1,0 +1,135 @@
+name: RahYar 0.14.0 Voice Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0140-voice-diag-trigger.txt'
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-p0-voice-0140
+
+jobs:
+  voice-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Generate source and bundled Persian voice
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+          python tools/apply_rahyar_0139_ui_behavior.py
+          python tools/apply_rahyar_0140_builtin_voice.py
+          python tools/stage_rahyar_0140_persian_voice.py
+          grep -q 'versionName = "0.14.0-alpha-p0"' app/build.gradle.kts
+          grep -q 'ec6cf5d89067fcf72c410206d42b83ebaf95ee8219ecd169c85c6868a2ab977c' app/src/main/assets/rahyar_tts/VOICE_MANIFEST.txt
+      - name: Build diagnostic APK
+        working-directory: source
+        run: |
+          set -euo pipefail
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.0-voice-diagnostic.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Diagnose Persian synthesis on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save
+          disable-animations: true
+          working-directory: source
+          script: |
+            adb wait-for-device
+            adb install -r RahYar-0.14.0-voice-diagnostic.apk
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
+            result=timeout
+            for i in $(seq 1 450); do
+              if adb logcat -d | grep -q 'PASS BUILTIN_PERSIAN_TTS'; then result=pass; break; fi
+              if adb logcat -d | grep -q -E 'BUILTIN_PERSIAN_TTS_(INIT_FAIL|SELFTEST_FAIL)'; then result=fail; break; fi
+              if ! adb shell pidof ir.rahyar.app >/dev/null 2>&1; then result=dead; break; fi
+              sleep .4
+            done
+            adb logcat -d > RahYar-0.14.0-voice-diagnostic-logcat.txt || true
+            grep -E 'RahYarVoice|RahYarSim|sherpa|onnx|FATAL EXCEPTION|AndroidRuntime' RahYar-0.14.0-voice-diagnostic-logcat.txt > RahYar-0.14.0-voice-diagnostic.txt || true
+            adb shell dumpsys meminfo ir.rahyar.app > RahYar-0.14.0-voice-meminfo.txt || true
+            adb shell run-as ir.rahyar.app sh -c 'find files/rahyar_tts -type f 2>/dev/null | wc -l' > RahYar-0.14.0-espeak-file-count.txt || true
+            printf 'result=%s\n' "$result" > RahYar-0.14.0-voice-result.txt
+            cat RahYar-0.14.0-voice-result.txt
+            cat RahYar-0.14.0-voice-diagnostic.txt || true
+            test "$result" = pass
+            grep -q 'BUILTIN_PERSIAN_TTS_READY' RahYar-0.14.0-voice-diagnostic.txt
+            grep -q 'BUILTIN_PERSIAN_TTS_SELFTEST_DONE ok=true' RahYar-0.14.0-voice-diagnostic.txt
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.14.0-voice-diagnostic
+          path: |
+            source/RahYar-0.14.0-voice-diagnostic-logcat.txt
+            source/RahYar-0.14.0-voice-diagnostic.txt
+            source/RahYar-0.14.0-voice-meminfo.txt
+            source/RahYar-0.14.0-espeak-file-count.txt
+            source/RahYar-0.14.0-voice-result.txt
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Publish diagnostic status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/status.txt
+          b64=$(base64 -w0 /tmp/status.txt)
+          api="repos/${{ github.repository }}/contents/status/rahyar-0140-voice-diagnostic.txt"
+          sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update 0.14.0 voice diagnostic status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add 0.14.0 voice diagnostic status' -f content="$b64" >/dev/null; fi
