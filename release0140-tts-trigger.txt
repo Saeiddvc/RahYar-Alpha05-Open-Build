@@ -1,1 +1,1 @@
-trigger 2026-08-19 0.14.0 launch-safe hotfix v1
+trigger 2026-08-19 0.14.0 plain-launch diagnostic v2
