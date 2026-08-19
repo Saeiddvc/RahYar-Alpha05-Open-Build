@@ -45,7 +45,9 @@ jobs:
           python3 patch_alpha23.py
           python3 patch_alpha21_compilefix.py
           python3 patch_alpha23_ui.py
-          python3 patch_alpha24.py
+          python3 patch_alpha24.py || true
+          python3 patch_alpha24_datafix.py
+          python3 patch_alpha24b.py
           python3 patch_alpha24_ui.py
           python3 patch_alpha21_compilefix.py
           openssl pkcs12 -export -inkey kifnex-alpha-test-key.pem -in kifnex-alpha-test-cert.pem -name kifnex-alpha -out kifnex-alpha-test.p12 -passout pass:kifnexAlpha2026
