@@ -1,1 +1,1 @@
-KifNex 0.1.0-alpha.23 transaction review validation — retry 2 — 2026-08-19
+KifNex 0.1.0-alpha.23 transaction review validation — refined UI — retry 3 — 2026-08-19
