@@ -1,1 +1,1 @@
-KifNex 0.1.0-alpha.24 receipt status idempotency validation — retry 7 — 2026-08-19
+KifNex 0.1.0-alpha.24 receipt status idempotency validation — retry 8 — 2026-08-19
