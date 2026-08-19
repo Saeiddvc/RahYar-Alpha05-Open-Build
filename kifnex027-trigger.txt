@@ -1,1 +1,1 @@
-KifNex 0.1.0-alpha.27 direct SMS pilot validation — retry 2 — 2026-08-20
+KifNex 0.1.0-alpha.27 direct SMS pilot validation — real SMS path — retry 3 — 2026-08-20
