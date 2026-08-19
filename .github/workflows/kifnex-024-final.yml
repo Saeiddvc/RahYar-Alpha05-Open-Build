@@ -1,0 +1,117 @@
+name: KifNex 0.1.0-alpha.24 Receipt Idempotency
+
+on:
+  push:
+    paths:
+      - 'kifnex024-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REF: kifnex-alpha24-android
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: buildrepo
+      - uses: actions/checkout@v4
+        with:
+          repository: Saeiddvc/SaeidNavigator-Android
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Prepare source and stable signing
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          python3 patch_alpha20.py
+          python3 patch_alpha21.py
+          python3 patch_alpha22.py
+          python3 patch_alpha22b.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha23.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha23_ui.py
+          python3 patch_alpha24.py
+          python3 patch_alpha24_ui.py
+          python3 patch_alpha21_compilefix.py
+          openssl pkcs12 -export -inkey kifnex-alpha-test-key.pem -in kifnex-alpha-test-cert.pem -name kifnex-alpha -out kifnex-alpha-test.p12 -passout pass:kifnexAlpha2026
+          rm -f app/kifnex-alpha-test.keystore
+          keytool -importkeystore -srckeystore kifnex-alpha-test.p12 -srcstoretype PKCS12 -srcstorepass kifnexAlpha2026 -srcalias kifnex-alpha -destkeystore app/kifnex-alpha-test.keystore -deststoretype JKS -deststorepass kifnexAlpha2026 -destkeypass kifnexAlpha2026 -destalias kifnex-alpha -noprompt
+          mkdir -p app/src/main/res/font
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' -o app/src/main/res/font/iransans_fanum_regular.ttf
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' -o app/src/main/res/font/iransans_fanum_medium.ttf
+          curl -fL --retry 3 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' -o app/src/main/res/font/iransans_fanum_bold.ttf
+      - name: Build APK
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk KifNex-0.1.0-alpha.24-receipt-idempotency.apk
+          sha256sum KifNex-0.1.0-alpha.24-receipt-idempotency.apk > KifNex-0.1.0-alpha.24-receipt-idempotency.sha256
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging KifNex-0.1.0-alpha.24-receipt-idempotency.apk > kifnex024-badging.txt
+          grep -q "package: name='ir.kifnex.app'" kifnex024-badging.txt
+          grep -q "versionName='0.1.0-alpha.24'" kifnex024-badging.txt
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs KifNex-0.1.0-alpha.24-receipt-idempotency.apk > kifnex024-cert.txt
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android 15 runtime validation
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source/kifnex-preview
+          script: bash smoke_alpha24.sh
+      - name: Upload validated Alpha24
+        uses: actions/upload-artifact@v4
+        with:
+          name: KifNex-0.1.0-alpha.24-receipt-idempotency
+          path: |
+            source/kifnex-preview/KifNex-0.1.0-alpha.24-receipt-idempotency.apk
+            source/kifnex-preview/KifNex-0.1.0-alpha.24-receipt-idempotency.sha256
+            source/kifnex-preview/kifnex024-cert.txt
+            source/kifnex-preview/kifnex024-badging.txt
+            source/kifnex-preview/kifnex024-home.png
+            source/kifnex-preview/kifnex024-receipt.png
+            source/kifnex-preview/kifnex024-detail.png
+            source/kifnex-preview/kifnex024-logcat.txt
+            source/kifnex-preview/receipt.xml
+            source/kifnex-preview/detail.xml
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish status
+        if: always()
+        working-directory: buildrepo
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -e
+          git config user.name 'KifNex CI Status'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase || true
+          printf 'status=%s\nrun_id=%s\nsource_ref=%s\n' "$JOB_STATUS" "$GITHUB_RUN_ID" "$SOURCE_REF" > kifnex024-status.txt
+          git add kifnex024-status.txt
+          git commit -m 'Publish KifNex Alpha24 status' || true
+          git push || true
