@@ -120,25 +120,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: source/kifnex-preview
-          script: |
-            bash -lc 'set -euo pipefail
-            adb install -r KifNex-0.1.0-alpha.27-directsms-pilot.apk
-            adb shell pm clear ir.kifnex.app
-            adb shell pm grant ir.kifnex.app android.permission.RECEIVE_SMS
-            adb shell am start -n ir.kifnex.app/.MainActivity --ez kifnex_test_registered true --ez kifnex_test_bank_sample true
-            sleep 5
-            adb shell dumpsys package ir.kifnex.app > kifnex027-package.txt
-            grep -q "android.permission.RECEIVE_SMS: granted=true" kifnex027-package.txt
-            grep -q FinancialSmsReceiver kifnex027-package.txt
-            adb shell uiautomator dump /sdcard/kifnex027.xml >/dev/null
-            adb pull /sdcard/kifnex027.xml kifnex027.xml >/dev/null
-            grep -q "تراکنش‌های بانکی" kifnex027.xml
-            grep -q "دریافت مستقیم پیامک فعال است" kifnex027.xml
-            grep -q "بانک سامان" kifnex027.xml
-            adb exec-out screencap -p > kifnex027-bank-sms.png
-            adb logcat -d > kifnex027-logcat.txt
-            test -n "$(adb shell pidof ir.kifnex.app)"
-            ! grep -q "FATAL EXCEPTION.*ir.kifnex.app" kifnex027-logcat.txt'
+          script: bash smoke_alpha27.sh
 
       - name: Upload Alpha27
         uses: actions/upload-artifact@v4
