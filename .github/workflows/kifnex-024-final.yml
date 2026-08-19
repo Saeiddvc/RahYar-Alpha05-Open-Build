@@ -50,6 +50,7 @@ jobs:
           python3 patch_alpha24b_hotfix.py
           python3 patch_alpha24b.py
           python3 patch_alpha24_ui.py
+          python3 patch_alpha24_dialogstack.py
           python3 patch_alpha21_compilefix.py
           openssl pkcs12 -export -inkey kifnex-alpha-test-key.pem -in kifnex-alpha-test-cert.pem -name kifnex-alpha -out kifnex-alpha-test.p12 -passout pass:kifnexAlpha2026
           rm -f app/kifnex-alpha-test.keystore
@@ -97,6 +98,7 @@ jobs:
             source/kifnex-preview/kifnex024-cert.txt
             source/kifnex-preview/kifnex024-badging.txt
             source/kifnex-preview/kifnex024-home.png
+            source/kifnex-preview/kifnex024-confirm.png
             source/kifnex-preview/kifnex024-receipt.png
             source/kifnex-preview/kifnex024-detail.png
             source/kifnex-preview/kifnex024-logcat.txt
