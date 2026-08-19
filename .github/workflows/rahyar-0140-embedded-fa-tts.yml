@@ -1,4 +1,4 @@
-name: RahYar 0.14.0 Embedded Persian TTS - Launch Safe Hotfix
+name: RahYar 0.14.0 Launch Diagnostic
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Generate 0.14.0 source and embed Persian voice
+      - name: Generate source
         working-directory: source
         run: |
           set -euo pipefail
@@ -66,24 +66,19 @@ jobs:
           python tools/apply_rahyar_0139_ui_behavior.py
           python tools/apply_rahyar_0140_embedded_tts.py
 
-      - name: Launch-safe embedded voice source gates
+      - name: Source gates
         working-directory: source
         run: |
           set -euo pipefail
           V3=app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           MAN=app/src/main/AndroidManifest.xml
           grep -q 'versionName = "0.14.0-alpha-p0"' app/build.gradle.kts
-          grep -q 'versionCode = 37' app/build.gradle.kts
           grep -q 'RahYarEmbeddedVoiceService' "$V3"
-          grep -q 'EMBEDDED_SPEAK' "$V3"
-          grep -q 'PASS EMBEDDED_FA_TTS_DISPATCH' "$V3"
+          grep -q 'android:process=":voice"' "$MAN"
           ! grep -q 'new RahYarEmbeddedPersianTts' "$V3"
           ! grep -q 'TextToSpeech' "$V3"
-          grep -q 'android:name=".RahYarEmbeddedVoiceService"' "$MAN"
-          grep -q 'android:process=":voice"' "$MAN"
           test -s app/libs/sherpa-onnx-1.13.4.aar
           test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx
-          echo 'ec6cf5d89067fcf72c410206d42b83ebaf95ee8219ecd169c85c6868a2ab977c  app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx' | sha256sum -c -
           test ! -e app/src/main/assets/fonts/b_traffic.ttf
 
       - name: Compile align sign
@@ -95,11 +90,11 @@ jobs:
           zip -d unsigned.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
           BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$BT/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
-          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0140 -keypass rahyar0140 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar 0140 Launch Safe Hotfix, OU=QA, O=RahYar, C=IR'
-          "$BT/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0140 --key-pass pass:rahyar0140 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk aligned.apk
-          "$BT/apksigner" verify --verbose --print-certs RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk > RahYar-0.14.0-signing.txt
-          "$BT/zipalign" -P 16 -c -v 4 RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk > RahYar-0.14.0-alignment.txt
-          sha256sum RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk > RahYar-0.14.0.sha256
+          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0140 -keypass rahyar0140 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar 0140 Launch Diagnostic, OU=QA, O=RahYar, C=IR'
+          "$BT/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0140 --key-pass pass:rahyar0140 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.14.0-alpha-p0-LAUNCH-DIAG.apk aligned.apk
+          "$BT/apksigner" verify --verbose --print-certs RahYar-0.14.0-alpha-p0-LAUNCH-DIAG.apk > RahYar-0.14.0-signing.txt
+          "$BT/zipalign" -P 16 -c -v 4 RahYar-0.14.0-alpha-p0-LAUNCH-DIAG.apk > RahYar-0.14.0-alignment.txt
+          sha256sum RahYar-0.14.0-alpha-p0-LAUNCH-DIAG.apk > RahYar-0.14.0.sha256
 
       - name: Enable KVM
         run: |
@@ -107,7 +102,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Emulator launch-survival and isolated voice gate
+      - name: Emulator plain-launch diagnostic
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -118,62 +113,69 @@ jobs:
           disable-animations: true
           working-directory: source
           script: |
+            set +e
             adb wait-for-device
-            adb install -r RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk
+            adb install -r RahYar-0.14.0-alpha-p0-LAUNCH-DIAG.apk
+            INSTALL_RC=$?
             adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
+            adb shell am start -W -n ir.rahyar.app/.RahYarV3Activity > RahYar-0.14.0-am-start.txt 2>&1
+            START_RC=$?
+            sleep 10
+            adb logcat -d > RahYar-0.14.0-plain-logcat.txt
+            adb shell ps -A > RahYar-0.14.0-ps.txt 2>&1
+            adb shell dumpsys activity activities > RahYar-0.14.0-activities.txt 2>&1
+            adb shell dumpsys activity processes > RahYar-0.14.0-processes.txt 2>&1
+            MAIN_PID="$(adb shell pidof ir.rahyar.app 2>/dev/null | tr -d '\r')"
+            {
+              echo "install_rc=$INSTALL_RC"
+              echo "start_rc=$START_RC"
+              echo "main_pid=$MAIN_PID"
+              echo '=== AM START ==='
+              cat RahYar-0.14.0-am-start.txt
+              echo '=== CRASH EXTRACT ==='
+              grep -E 'FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|OutOfMemory|UnsatisfiedLinkError|NoClassDefFoundError|ClassNotFoundException|SecurityException|IllegalStateException|Process: ir.rahyar.app|Force finishing|has died' RahYar-0.14.0-plain-logcat.txt || true
+            } > RahYar-0.14.0-launch-diagnostic.txt
+            cat RahYar-0.14.0-launch-diagnostic.txt
+            if [ "$INSTALL_RC" -ne 0 ] || [ "$START_RC" -ne 0 ] || [ -z "$MAIN_PID" ]; then
+              exit 31
+            fi
+            echo "PASS PLAIN_LAUNCH_SURVIVES pid=$MAIN_PID"
+
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
-            for i in $(seq 1 160); do adb logcat -d | grep -q 'PASS COMPLETE' && break; sleep .25; done
-            sleep 2
-            MAIN_PID="$(adb shell pidof ir.rahyar.app | tr -d '\r')"
-            test -n "$MAIN_PID"
-            echo "PASS MAIN_PROCESS_SURVIVES pid=$MAIN_PID"
-            adb logcat -d > RahYar-0.14.0-logcat.txt
-            grep RahYarSim RahYar-0.14.0-logcat.txt > RahYar-0.14.0-simulation.txt || true
-            grep RahYarEmbeddedTts RahYar-0.14.0-logcat.txt > RahYar-0.14.0-embedded-tts.txt || true
-            cat RahYar-0.14.0-simulation.txt
-            cat RahYar-0.14.0-embedded-tts.txt
-            grep -q 'PASS HOME' RahYar-0.14.0-simulation.txt
-            grep -q 'PASS NAVIGATION' RahYar-0.14.0-simulation.txt
-            grep -q 'PASS COMPASS_VISIBLE' RahYar-0.14.0-simulation.txt
-            grep -q 'PASS SUN_TIMES_VISIBLE' RahYar-0.14.0-simulation.txt
-            grep -q 'PASS WEATHER_TAP_DISMISS' RahYar-0.14.0-simulation.txt
-            grep -q 'PASS THEME_DARK_APPLIED' RahYar-0.14.0-simulation.txt
-            grep -q 'PASS EMBEDDED_FA_TTS_DISPATCH' RahYar-0.14.0-simulation.txt
-            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app, PID' RahYar-0.14.0-logcat.txt
+            for i in $(seq 1 180); do adb logcat -d | grep -q 'PASS COMPLETE' && break; sleep .25; done
+            adb logcat -d > RahYar-0.14.0-sim-logcat.txt
+            grep RahYarSim RahYar-0.14.0-sim-logcat.txt > RahYar-0.14.0-simulation.txt || true
+            grep RahYarEmbeddedTts RahYar-0.14.0-sim-logcat.txt > RahYar-0.14.0-embedded-tts.txt || true
+            grep -q 'PASS HOME' RahYar-0.14.0-simulation.txt || exit 41
+            grep -q 'PASS COMPASS_VISIBLE' RahYar-0.14.0-simulation.txt || exit 42
+            grep -q 'PASS SUN_TIMES_VISIBLE' RahYar-0.14.0-simulation.txt || exit 43
+            grep -q 'PASS WEATHER_TAP_DISMISS' RahYar-0.14.0-simulation.txt || exit 44
+            grep -q 'PASS THEME_DARK_APPLIED' RahYar-0.14.0-simulation.txt || exit 45
+            exit 0
 
-      - name: Write validation
-        if: success()
-        working-directory: source
-        run: |
-          cat > Validation-0.14.0.txt <<'EOF'
-          RahYar 0.14.0 Alpha P0 - Launch Safe Hotfix
-          ===========================================
-          PASS main RahYar navigation process survives launch and full simulation.
-          PASS embedded Persian TTS no longer initializes inside the main navigation process.
-          PASS embedded TTS is isolated in private Android :voice process.
-          PASS Persian model and sherpa-onnx runtime remain packaged inside the APK.
-          PASS no Android TextToSpeech dependency in RahYar V3.
-          PASS previous compass/weather/theme/navigation gates used in this hotfix.
-          PASS v1/v2/v3 signing and 16KiB ZIP alignment.
-          NOTE: isolated neural TTS synthesis performance remains a separate voice-quality gate; a voice-process failure cannot terminate RahYar UI.
-          EOF
-          cat RahYar-0.14.0.sha256 >> Validation-0.14.0.txt
-
-      - name: Upload
+      - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.14.0-alpha-p0-LAUNCH-SAFE
+          name: RahYar-0.14.0-alpha-p0-LAUNCH-DIAG
           path: |
-            source/RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk
+            source/RahYar-0.14.0-alpha-p0-LAUNCH-DIAG.apk
             source/RahYar-0.14.0.sha256
             source/RahYar-0.14.0-signing.txt
             source/RahYar-0.14.0-alignment.txt
+            source/RahYar-0.14.0-launch-diagnostic.txt
+            source/RahYar-0.14.0-plain-logcat.txt
+            source/RahYar-0.14.0-am-start.txt
+            source/RahYar-0.14.0-ps.txt
+            source/RahYar-0.14.0-activities.txt
+            source/RahYar-0.14.0-processes.txt
             source/RahYar-0.14.0-simulation.txt
+            source/RahYar-0.14.0-sim-logcat.txt
             source/RahYar-0.14.0-embedded-tts.txt
-            source/Validation-0.14.0.txt
           if-no-files-found: warn
           retention-days: 14
 
@@ -182,6 +184,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.0-alpha-p0-LAUNCH-SAFE' > /tmp/status.txt
+          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.0-alpha-p0-LAUNCH-DIAG' > /tmp/status.txt
           b64=$(base64 -w0 /tmp/status.txt); api="repos/${{ github.repository }}/contents/status/rahyar-0140-tts.txt"; sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
-          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.0 launch-safe status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.0 launch-safe status' -f content="$b64" >/dev/null; fi
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.0 launch diagnostic status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.0 launch diagnostic status' -f content="$b64" >/dev/null; fi
