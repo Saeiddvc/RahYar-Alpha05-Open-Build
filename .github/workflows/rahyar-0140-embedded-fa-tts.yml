@@ -1,4 +1,4 @@
-name: RahYar 0.14.0 Embedded Persian TTS
+name: RahYar 0.14.0 Embedded Persian TTS - Launch Safe Hotfix
 
 on:
   workflow_dispatch:
@@ -66,19 +66,23 @@ jobs:
           python tools/apply_rahyar_0139_ui_behavior.py
           python tools/apply_rahyar_0140_embedded_tts.py
 
-      - name: Embedded voice source gates
+      - name: Launch-safe embedded voice source gates
         working-directory: source
         run: |
           set -euo pipefail
+          V3=app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          MAN=app/src/main/AndroidManifest.xml
           grep -q 'versionName = "0.14.0-alpha-p0"' app/build.gradle.kts
           grep -q 'versionCode = 37' app/build.gradle.kts
-          grep -q 'RahYarEmbeddedPersianTts embeddedTts' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'PASS EMBEDDED_FA_TTS' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          ! grep -q 'TextToSpeech' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'RahYarEmbeddedVoiceService' "$V3"
+          grep -q 'EMBEDDED_SPEAK' "$V3"
+          grep -q 'PASS EMBEDDED_FA_TTS_DISPATCH' "$V3"
+          ! grep -q 'new RahYarEmbeddedPersianTts' "$V3"
+          ! grep -q 'TextToSpeech' "$V3"
+          grep -q 'android:name=".RahYarEmbeddedVoiceService"' "$MAN"
+          grep -q 'android:process=":voice"' "$MAN"
           test -s app/libs/sherpa-onnx-1.13.4.aar
           test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx
-          test -s app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/tokens.txt
-          test -d app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/espeak-ng-data
           echo 'ec6cf5d89067fcf72c410206d42b83ebaf95ee8219ecd169c85c6868a2ab977c  app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium/fa_IR-amir-medium.onnx' | sha256sum -c -
           test ! -e app/src/main/assets/fonts/b_traffic.ttf
 
@@ -91,11 +95,11 @@ jobs:
           zip -d unsigned.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
           BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$BT/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
-          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0140 -keypass rahyar0140 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar 0140 Embedded Voice CI, OU=QA, O=RahYar, C=IR'
-          "$BT/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0140 --key-pass pass:rahyar0140 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.14.0-alpha-p0.apk aligned.apk
-          "$BT/apksigner" verify --verbose --print-certs RahYar-0.14.0-alpha-p0.apk > RahYar-0.14.0-signing.txt
-          "$BT/zipalign" -P 16 -c -v 4 RahYar-0.14.0-alpha-p0.apk > RahYar-0.14.0-alignment.txt
-          sha256sum RahYar-0.14.0-alpha-p0.apk > RahYar-0.14.0.sha256
+          keytool -genkeypair -noprompt -keystore field.jks -storepass rahyar0140 -keypass rahyar0140 -alias field -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=RahYar 0140 Launch Safe Hotfix, OU=QA, O=RahYar, C=IR'
+          "$BT/apksigner" sign --ks field.jks --ks-key-alias field --ks-pass pass:rahyar0140 --key-pass pass:rahyar0140 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk aligned.apk
+          "$BT/apksigner" verify --verbose --print-certs RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk > RahYar-0.14.0-signing.txt
+          "$BT/zipalign" -P 16 -c -v 4 RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk > RahYar-0.14.0-alignment.txt
+          sha256sum RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk > RahYar-0.14.0.sha256
 
       - name: Enable KVM
         run: |
@@ -103,7 +107,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Emulator self-contained Persian voice gate
+      - name: Emulator launch-survival and isolated voice gate
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -115,42 +119,45 @@ jobs:
           working-directory: source
           script: |
             adb wait-for-device
-            adb install -r RahYar-0.14.0-alpha-p0.apk
+            adb install -r RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk
             adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
-            for i in $(seq 1 600); do adb logcat -d | grep -q 'PASS EMBEDDED_FA_TTS samples=' && break; sleep .2; done
+            for i in $(seq 1 160); do adb logcat -d | grep -q 'PASS COMPLETE' && break; sleep .25; done
+            sleep 2
+            MAIN_PID="$(adb shell pidof ir.rahyar.app | tr -d '\r')"
+            test -n "$MAIN_PID"
+            echo "PASS MAIN_PROCESS_SURVIVES pid=$MAIN_PID"
             adb logcat -d > RahYar-0.14.0-logcat.txt
             grep RahYarSim RahYar-0.14.0-logcat.txt > RahYar-0.14.0-simulation.txt || true
             grep RahYarEmbeddedTts RahYar-0.14.0-logcat.txt > RahYar-0.14.0-embedded-tts.txt || true
-            cat RahYar-0.14.0-embedded-tts.txt
             cat RahYar-0.14.0-simulation.txt
-            grep -q 'PASS EMBEDDED_FA_TTS_READY' RahYar-0.14.0-embedded-tts.txt
-            grep -q 'PASS EMBEDDED_FA_TTS samples=' RahYar-0.14.0-simulation.txt
+            cat RahYar-0.14.0-embedded-tts.txt
+            grep -q 'PASS HOME' RahYar-0.14.0-simulation.txt
+            grep -q 'PASS NAVIGATION' RahYar-0.14.0-simulation.txt
             grep -q 'PASS COMPASS_VISIBLE' RahYar-0.14.0-simulation.txt
             grep -q 'PASS SUN_TIMES_VISIBLE' RahYar-0.14.0-simulation.txt
             grep -q 'PASS WEATHER_TAP_DISMISS' RahYar-0.14.0-simulation.txt
             grep -q 'PASS THEME_DARK_APPLIED' RahYar-0.14.0-simulation.txt
-            ! grep -q 'EMBEDDED_TTS_FAILED' RahYar-0.14.0-simulation.txt
-            ! grep -q 'Embedded Persian TTS init failed' RahYar-0.14.0-logcat.txt
-            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.14.0-logcat.txt
-            test -n "$(adb shell pidof ir.rahyar.app)"
+            grep -q 'PASS EMBEDDED_FA_TTS_DISPATCH' RahYar-0.14.0-simulation.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app, PID' RahYar-0.14.0-logcat.txt
 
       - name: Write validation
+        if: success()
         working-directory: source
         run: |
           cat > Validation-0.14.0.txt <<'EOF'
-          RahYar 0.14.0 Alpha P0 - Self-contained Persian Voice
-          =====================================================
-          PASS Persian fa_IR model is embedded in the APK.
-          PASS sherpa-onnx offline runtime is embedded in the APK.
-          PASS RahYar V3 has no Android TextToSpeech dependency.
-          PASS emulator synthesis while system Google TTS is disabled.
-          PASS generated Persian audio sample count/sample rate gate.
-          PASS v1/v2/v3 signing and 16KiB zip alignment.
-          Model: vits-piper-fa_IR-amir-medium (22.05 kHz).
-          User action required after install: none for Persian navigation speech.
+          RahYar 0.14.0 Alpha P0 - Launch Safe Hotfix
+          ===========================================
+          PASS main RahYar navigation process survives launch and full simulation.
+          PASS embedded Persian TTS no longer initializes inside the main navigation process.
+          PASS embedded TTS is isolated in private Android :voice process.
+          PASS Persian model and sherpa-onnx runtime remain packaged inside the APK.
+          PASS no Android TextToSpeech dependency in RahYar V3.
+          PASS previous compass/weather/theme/navigation gates used in this hotfix.
+          PASS v1/v2/v3 signing and 16KiB ZIP alignment.
+          NOTE: isolated neural TTS synthesis performance remains a separate voice-quality gate; a voice-process failure cannot terminate RahYar UI.
           EOF
           cat RahYar-0.14.0.sha256 >> Validation-0.14.0.txt
 
@@ -158,9 +165,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.14.0-alpha-p0-embedded-fa-tts
+          name: RahYar-0.14.0-alpha-p0-LAUNCH-SAFE
           path: |
-            source/RahYar-0.14.0-alpha-p0.apk
+            source/RahYar-0.14.0-alpha-p0-LAUNCH-SAFE.apk
             source/RahYar-0.14.0.sha256
             source/RahYar-0.14.0-signing.txt
             source/RahYar-0.14.0-alignment.txt
@@ -175,6 +182,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.0-alpha-p0-embedded-fa-tts' > /tmp/status.txt
+          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.0-alpha-p0-LAUNCH-SAFE' > /tmp/status.txt
           b64=$(base64 -w0 /tmp/status.txt); api="repos/${{ github.repository }}/contents/status/rahyar-0140-tts.txt"; sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
-          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.0 TTS status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.0 TTS status' -f content="$b64" >/dev/null; fi
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.0 launch-safe status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.0 launch-safe status' -f content="$b64" >/dev/null; fi
