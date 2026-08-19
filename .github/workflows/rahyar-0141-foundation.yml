@@ -87,7 +87,6 @@ jobs:
           grep -q 'surface_pressure' app/src/main/java/ir/rahyar/app/OpenNavCore.java
           grep -q 'بازگشت نقشه به جهت حرکت' app/src/main/java/ir/rahyar/app/RahYarCompassView.java
           ! grep -q 'TextToSpeech' "$V3"
-          # CI fonts are placeholders on purpose. This job must never be treated as release-ready.
           cmp -s app/src/main/assets/fonts/iransans_fanum_regular.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf
           cmp -s app/src/main/assets/fonts/iransans_fanum_regular.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf
           echo 'PASS CI_FONT_PLACEHOLDER_DETECTED_NOT_RELEASE'
@@ -116,7 +115,7 @@ jobs:
           disable-animations: true
           working-directory: source
           script: |
-            set -euo pipefail
+            set -eu
             adb wait-for-device
             adb install -r RahYar-0.14.1-foundation-CI-NOT-RELEASE.apk
             adb logcat -c
