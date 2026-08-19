@@ -93,21 +93,14 @@ jobs:
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
             adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
-            result=timeout
-            for i in $(seq 1 450); do
-              if adb logcat -d | grep -q 'PASS BUILTIN_PERSIAN_TTS'; then result=pass; break; fi
-              if adb logcat -d | grep -q -E 'BUILTIN_PERSIAN_TTS_(INIT_FAIL|SELFTEST_FAIL)'; then result=fail; break; fi
-              if ! adb shell pidof ir.rahyar.app >/dev/null 2>&1; then result=dead; break; fi
-              sleep .4
-            done
+            sh -c 'result=timeout; for i in $(seq 1 450); do if adb logcat -d | grep -q "PASS BUILTIN_PERSIAN_TTS"; then result=pass; break; fi; if adb logcat -d | grep -q -E "BUILTIN_PERSIAN_TTS_(INIT_FAIL|SELFTEST_FAIL)"; then result=fail; break; fi; if ! adb shell pidof ir.rahyar.app >/dev/null 2>&1; then result=dead; break; fi; sleep .4; done; printf "result=%s\n" "$result" > RahYar-0.14.0-voice-result.txt'
             adb logcat -d > RahYar-0.14.0-voice-diagnostic-logcat.txt || true
             grep -E 'RahYarVoice|RahYarSim|sherpa|onnx|FATAL EXCEPTION|AndroidRuntime' RahYar-0.14.0-voice-diagnostic-logcat.txt > RahYar-0.14.0-voice-diagnostic.txt || true
             adb shell dumpsys meminfo ir.rahyar.app > RahYar-0.14.0-voice-meminfo.txt || true
             adb shell run-as ir.rahyar.app sh -c 'find files/rahyar_tts -type f 2>/dev/null | wc -l' > RahYar-0.14.0-espeak-file-count.txt || true
-            printf 'result=%s\n' "$result" > RahYar-0.14.0-voice-result.txt
             cat RahYar-0.14.0-voice-result.txt
             cat RahYar-0.14.0-voice-diagnostic.txt || true
-            test "$result" = pass
+            grep -q '^result=pass$' RahYar-0.14.0-voice-result.txt
             grep -q 'BUILTIN_PERSIAN_TTS_READY' RahYar-0.14.0-voice-diagnostic.txt
             grep -q 'BUILTIN_PERSIAN_TTS_SELFTEST_DONE ok=true' RahYar-0.14.0-voice-diagnostic.txt
       - name: Upload diagnostic evidence
