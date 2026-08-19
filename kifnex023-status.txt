@@ -1,3 +1,3 @@
-status=failure
-run_id=32227352667
+status=success
+run_id=32227561248
 source_ref=kifnex-alpha23-android
