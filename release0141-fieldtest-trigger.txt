@@ -1,1 +1,1 @@
-trigger 2026-08-20 RahYar 0.14.1 fieldtest v1 real-font minel-saeid
+trigger 2026-08-20T21:07+03:30 RahYar 0.14.1 UX closeout: dark-map compass weather icon minel-saeid
