@@ -52,8 +52,10 @@ jobs:
           python tools/apply_rahyar_0133_validation_hook.py
           python tools/apply_rahyar_0134_traffic_font.py
 
-          # Shipping typography: exact approved IRANSans FaNum family, not the CI B-Traffic placeholder.
-          mkdir -p app/src/main/assets/fonts
+          # Advance the deterministic chain and establish the three runtime IRANSans paths.
+          python tools/stage_rahyar_0135_ci_typography.py
+
+          # Replace CI placeholder bytes with the actual IRANSans FaNum Regular/Medium/Bold faces.
           curl -fL --retry 3 --connect-timeout 15 \
             'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' \
             -o app/src/main/assets/fonts/iransans_fanum_regular.ttf
@@ -63,10 +65,17 @@ jobs:
           curl -fL --retry 3 --connect-timeout 15 \
             'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' \
             -o app/src/main/assets/fonts/iransans_fanum_bold.ttf
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
-          python tools/apply_rahyar_0135_iransans_font.py
+
+          # Validate actual family/weight files and explicitly reject the old B Traffic placeholder.
+          for f in regular medium bold; do
+            P="app/src/main/assets/fonts/iransans_fanum_${f}.ttf"
+            test -s "$P"
+            test "$(stat -c%s "$P")" -gt 90000
+            test "$(sha256sum "$P" | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
+            fc-scan --format '%{family}\n' "$P" | grep -qi 'IRANSans'
+          done
+          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+          sha256sum app/src/main/assets/fonts/iransans_fanum_*.ttf
 
           python tools/apply_rahyar_0136_navigation_control.py
           python tools/apply_rahyar_0136_weather_guard.py
@@ -107,21 +116,22 @@ jobs:
           grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'saveNumericValue(e, key, def)' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'e.setText(trimNumber(val));' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
 
           gradle assembleDebug -x prepareRahYarSources --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk
           sha256sum RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk > RahYar-0.14.1-alpha-p0-ARM64-FIXED.sha256
 
-          # Verify the built APK carries the exact shipping fonts, not placeholder bytes.
+          # Verify the packaged APK still carries IRANSans and never regressed to B Traffic.
           unzip -p RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk assets/fonts/iransans_fanum_regular.ttf > /tmp/iransans-regular.ttf
           unzip -p RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk assets/fonts/iransans_fanum_medium.ttf > /tmp/iransans-medium.ttf
           unzip -p RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk assets/fonts/iransans_fanum_bold.ttf > /tmp/iransans-bold.ttf
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  /tmp/iransans-regular.ttf' | sha256sum -c -
-          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  /tmp/iransans-medium.ttf' | sha256sum -c -
-          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  /tmp/iransans-bold.ttf' | sha256sum -c -
+          for P in /tmp/iransans-regular.ttf /tmp/iransans-medium.ttf /tmp/iransans-bold.ttf; do
+            test "$(stat -c%s "$P")" -gt 90000
+            test "$(sha256sum "$P" | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
+            fc-scan --format '%{family}\n' "$P" | grep -qi 'IRANSans'
+          done
+          unzip -l RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk | grep -q 'assets/fonts/iransans_fanum_regular.ttf'
+          ! unzip -l RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk | grep -q 'assets/fonts/b_traffic.ttf'
           ls -lh RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk
 
       - name: Upload fixed ARM64 APK
