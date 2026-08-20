@@ -69,11 +69,15 @@ jobs:
           python tools/apply_rahyar_0141_camera_theme.py
           python tools/apply_rahyar_0141_waypoint_weather.py
           python tools/apply_rahyar_0141_multivoice.py
+          python tools/fix_rahyar_0141_voice_personas.py
           python tools/fix_rahyar_0141_voice_icon.py
           python tools/fix_rahyar_0141_voice_service_lifetime.py
           python tools/apply_rahyar_0141_voice_preview_test_hook.py
           grep -q 'مینل · زن' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q '"minel","saeid"' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'PROFILE_MINEL' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
+          grep -q 'PROFILE_SAEID' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
           grep -q 'rahyar_voice_preview_test' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           gradle assembleDebug -x prepareRahYarSources --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE.apk
@@ -100,18 +104,20 @@ jobs:
             adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
-            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile khadijah --es voice_language fa --es voice_text 'سلام. من مینل هستم. همراه آرام و روشن مسیر تو.'
-            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true' && break; sleep .25; done
-            adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true'
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile minel --es voice_language fa
+            for i in $(seq 1 480); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' && break; sleep .25; done
+            adb logcat -d > RahYar-0.14.1-minel-logcat.txt
+            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' RahYar-0.14.1-minel-logcat.txt
+            ! grep -q 'RahYar voice init failed' RahYar-0.14.1-minel-logcat.txt
             adb shell am force-stop ir.rahyar.app
             adb logcat -c
-            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile musa --es voice_language en --es voice_text 'Hello. I am Saeid. Your calm and clear RahYar companion.'
-            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=musa lang=en preview=true' && break; sleep .25; done
-            adb logcat -d > RahYar-0.14.1-multivoice-internal-logcat.txt
-            grep RahYarVoice RahYar-0.14.1-multivoice-internal-logcat.txt > RahYar-0.14.1-multivoice-internal-proof.txt || true
-            cat RahYar-0.14.1-multivoice-internal-proof.txt
-            grep -q 'PASS BUILTIN_VOICE_PLAYED profile=musa lang=en preview=true' RahYar-0.14.1-multivoice-internal-proof.txt
-            ! grep -q 'Built-in voice init failed' RahYar-0.14.1-multivoice-internal-logcat.txt
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile saeid --es voice_language en
+            for i in $(seq 1 480); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=en preview=true' && break; sleep .25; done
+            adb logcat -d > RahYar-0.14.1-saeid-logcat.txt
+            cat RahYar-0.14.1-saeid-logcat.txt | grep RahYarVoice > RahYar-0.14.1-multivoice-internal-proof.txt || true
+            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=en preview=true' RahYar-0.14.1-saeid-logcat.txt
+            ! grep -q 'RahYar voice init failed' RahYar-0.14.1-saeid-logcat.txt
+            adb shell pidof ir.rahyar.app | grep -q '[0-9]'
 
       - name: Upload diagnostics
         if: always()
@@ -120,7 +126,8 @@ jobs:
           name: RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE
           path: |
             source/RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE.apk
-            source/RahYar-0.14.1-multivoice-internal-logcat.txt
+            source/RahYar-0.14.1-minel-logcat.txt
+            source/RahYar-0.14.1-saeid-logcat.txt
             source/RahYar-0.14.1-multivoice-internal-proof.txt
           if-no-files-found: warn
           retention-days: 7
