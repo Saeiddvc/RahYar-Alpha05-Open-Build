@@ -1,0 +1,207 @@
+name: RahYar 0.14.1 UX Closeout
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0141-ux-closeout-trigger.txt'
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-stabilization-0141
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Generate corrected 0.14.1 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/stage_rahyar_0140_embedded_tts.py
+          python tools/stage_rahyar_0141_multivoice.py
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+          python tools/apply_rahyar_0139_ui_behavior.py
+          python tools/apply_rahyar_0140_embedded_tts.py
+          python tools/apply_rahyar_0141_camera_theme.py
+          python tools/apply_rahyar_0141_waypoint_weather.py
+          python tools/apply_rahyar_0141_multivoice.py
+          python tools/apply_rahyar_0141_voice_personas.py
+          python tools/fix_rahyar_0141_voice_icon.py
+          python tools/fix_rahyar_0141_voice_service_lifetime.py
+          python tools/apply_rahyar_0141_voice_preview_test_hook.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/ir/rahyar/app/RahYarV3Activity.java')
+          s=p.read_text(encoding='utf-8')
+          old='speedText=text("۰",14,Color.WHITE,true)'
+          if old in s:
+              s=s.replace(old,'speedText=text("۰",18,Color.WHITE,true)',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Hard UX gates
+        working-directory: source
+        run: |
+          set -euo pipefail
+          V3=app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          SET=app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'versionCode = 38' app/build.gradle.kts
+          grep -q 'versionName = "0.14.1-alpha-p0"' app/build.gradle.kts
+          grep -q 'Gravity.RIGHT|Gravity.CENTER_VERTICAL' "$V3"
+          grep -q 'cp.rightMargin=dp(14)' "$V3"
+          grep -q 'compassView.setTranslationY(-dp(70))' "$V3"
+          grep -q 'PASS HEADING_UP_DEFAULT' "$V3"
+          grep -q 'PASS COMPASS_CONTEXTUAL' "$V3"
+          grep -q 'PASS COMPASS_RESET_HEADING' "$V3"
+          grep -q 'PASS THEME_DARK_VISIBLE' "$V3"
+          grep -q 'RahYarThemeStyler.apply(style,dark)' "$V3"
+          grep -q 'restoreWeatherHome' "$V3"
+          grep -q 'p.setMargins(0,dp(28),dp(10),0)' "$V3"
+          grep -q 'مینل · زن' "$SET"
+          grep -q 'سعید · مرد' "$SET"
+          grep -q '"minel","saeid"' "$SET"
+          grep -q 'PROFILE_MINEL' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
+          grep -q 'PROFILE_SAEID' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
+          grep -q 'speedText=text("۰",18,Color.WHITE,true)' "$V3"
+          grep -q 'v3-waypoint' "$V3"
+          grep -q 'apparent_temperature' app/src/main/java/ir/rahyar/app/OpenNavCore.java
+          echo PASS_0141_UX_SOURCE_GATES
+
+      - name: Build installable APK
+        working-directory: source
+        run: |
+          set -euo pipefail
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-alpha-p0-UX-FIX.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging RahYar-0.14.1-alpha-p0-UX-FIX.apk > RahYar-0.14.1-badging.txt
+          grep -q "package: name='ir.rahyar.app'" RahYar-0.14.1-badging.txt
+          grep -q "versionCode='38'" RahYar-0.14.1-badging.txt
+          grep -q "versionName='0.14.1-alpha-p0'" RahYar-0.14.1-badging.txt
+          unzip -l RahYar-0.14.1-alpha-p0-UX-FIX.apk | grep -q 'VOICE_MANIFEST_0141.txt'
+          unzip -l RahYar-0.14.1-alpha-p0-UX-FIX.apk | grep -q 'matcha-tts-fa_en-khadijah'
+          unzip -l RahYar-0.14.1-alpha-p0-UX-FIX.apk | grep -q 'matcha-tts-fa_en-musa'
+          sha256sum RahYar-0.14.1-alpha-p0-UX-FIX.apk > RahYar-0.14.1-alpha-p0-UX-FIX.sha256
+          cat RahYar-0.14.1-alpha-p0-UX-FIX.sha256
+
+      - name: Upload corrected APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.14.1-alpha-p0-UX-FIX
+          path: |
+            source/RahYar-0.14.1-alpha-p0-UX-FIX.apk
+            source/RahYar-0.14.1-alpha-p0-UX-FIX.sha256
+            source/RahYar-0.14.1-badging.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish APK-ready status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf 'run_id=%s\nconclusion=success\nstatus=apk_ready\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.1-alpha-p0-UX-FIX' > /tmp/status.txt
+          b64=$(base64 -w0 /tmp/status.txt)
+          api="repos/${{ github.repository }}/contents/status/rahyar-0141-ux-closeout.txt"
+          sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.1 UX closeout status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.1 UX closeout status' -f content="$b64" >/dev/null; fi
+
+  runtime:
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: RahYar-0.14.1-alpha-p0-UX-FIX
+          path: runtime
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Navigation UX regression gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save
+          disable-animations: true
+          working-directory: runtime
+          script: |
+            adb wait-for-device
+            adb install -r RahYar-0.14.1-alpha-p0-UX-FIX.apk
+            adb logcat -c
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_simulation true --ez rahyar_validate_offline true
+            for i in $(seq 1 240); do adb logcat -d | grep -q 'RahYarSim.*COMPLETE' && break; sleep .25; done
+            adb logcat -d > RahYar-0.14.1-UX-runtime.txt
+            grep RahYarSim RahYar-0.14.1-UX-runtime.txt > RahYar-0.14.1-UX-simulation.txt || true
+            grep -q 'PASS HEADING_UP_DEFAULT' RahYar-0.14.1-UX-simulation.txt
+            grep -q 'PASS COMPASS_CONTEXTUAL' RahYar-0.14.1-UX-simulation.txt
+            grep -q 'PASS COMPASS_RESET_HEADING' RahYar-0.14.1-UX-simulation.txt
+            grep -q 'PASS THEME_DARK_VISIBLE' RahYar-0.14.1-UX-simulation.txt
+            grep -q 'PASS WEATHER_VERTICAL' RahYar-0.14.1-UX-simulation.txt
+            ! grep -q 'FAIL' RahYar-0.14.1-UX-simulation.txt
+            adb exec-out screencap -p > RahYar-0.14.1-UX-screen.png || true
+
+      - name: Upload runtime proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.14.1-alpha-p0-UX-PROOF
+          path: |
+            runtime/RahYar-0.14.1-UX-runtime.txt
+            runtime/RahYar-0.14.1-UX-simulation.txt
+            runtime/RahYar-0.14.1-UX-screen.png
+          if-no-files-found: warn
+          retention-days: 7
