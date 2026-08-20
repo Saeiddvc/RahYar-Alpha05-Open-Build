@@ -33,7 +33,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Generate 0.14.1 with built-in voices
+      - name: Generate 0.14.1 with RahYar voice personas
         working-directory: source
         run: |
           set -euo pipefail
@@ -69,8 +69,10 @@ jobs:
           python tools/apply_rahyar_0141_camera_theme.py
           python tools/apply_rahyar_0141_waypoint_weather.py
           python tools/apply_rahyar_0141_multivoice.py
+          python tools/apply_rahyar_0141_voice_personas.py
           python tools/fix_rahyar_0141_voice_icon.py
           python tools/fix_rahyar_0141_voice_service_lifetime.py
+          python tools/apply_rahyar_0141_voice_preview_test_hook.py
           cat app/src/main/assets/rahyar_tts/VOICE_MANIFEST_0141.txt
 
       - name: Multi-voice source gates
@@ -83,22 +85,25 @@ jobs:
           ENG=app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
           grep -q 'versionName = "0.14.1-alpha-p0"' app/build.gradle.kts
           grep -q 'languages=fa,en' app/src/main/assets/rahyar_tts/VOICE_MANIFEST_0141.txt
-          grep -q 'default_voice=khadijah' app/src/main/assets/rahyar_tts/VOICE_MANIFEST_0141.txt
           grep -q 'external_voice_pack_required=false' app/src/main/assets/rahyar_tts/VOICE_MANIFEST_0141.txt
-          grep -q 'PROFILE_KHADIJAH' "$ENG"
-          grep -q 'PROFILE_MUSA' "$ENG"
+          grep -q 'PROFILE_MINEL' "$ENG"
+          grep -q 'PROFILE_SAEID' "$ENG"
+          grep -q 'noiseScale=if(female) 0.84f else 0.88f' "$ENG"
+          grep -q 'lengthScale=if(female) 1.045f else 1.025f' "$ENG"
           grep -q 'ACTION_PREVIEW' "$SVC"
-          grep -q 'voice_language' "$SET"
-          grep -q 'voice_profile' "$SET"
-          grep -q 'پخش نمونه صدا' "$SET"
+          grep -q '"minel","saeid"' "$SET"
+          grep -q 'مینل · زن' "$SET"
+          grep -q 'سعید · مرد' "$SET"
+          grep -q 'Hi, I’m Minel' "$SET"
+          grep -q 'Hi, I’m Saeid' "$SET"
+          grep -q 'rahyar_voice_preview_test' "$V3"
           grep -q 'instructionEn' app/src/main/java/ir/rahyar/app/OpenNavCore.java
-          grep -q 'voiceInstruction' "$V3"
           ! grep -q 'TextToSpeech' "$V3"
           grep -q 'android:process=":voice"' app/src/main/AndroidManifest.xml
           test -s app/src/main/assets/rahyar_tts/matcha-tts-fa_en-khadijah/model.onnx
           test -s app/src/main/assets/rahyar_tts/matcha-tts-fa_en-musa/model.onnx
           test -s app/src/main/assets/rahyar_tts/vocos-22khz-univ.onnx
-          echo PASS_MULTIVOICE_SOURCE
+          echo PASS_RAHYAR_PERSONA_SOURCE
 
       - name: Compile voice candidate
         working-directory: source
@@ -113,7 +118,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Emulator real bilingual voice preview gate
+      - name: Emulator internal FA and EN persona preview gate
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -129,21 +134,18 @@ jobs:
             adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
-            adb shell am start -n ir.rahyar.app/.RahYarV3Activity
-            sleep 8
-            adb shell pidof ir.rahyar.app | grep -q '[0-9]'
-            adb shell am startservice -n ir.rahyar.app/.RahYarEmbeddedVoiceService -a ir.rahyar.app.action.EMBEDDED_PREVIEW --es text 'سلام من راه یارم' --es voice_profile khadijah --es voice_language fa --ez voice_preview true
-            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true' && break; sleep .25; done
-            adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true'
-            adb shell am startservice -n ir.rahyar.app/.RahYarEmbeddedVoiceService -a ir.rahyar.app.action.EMBEDDED_PREVIEW --es text 'Hello I am RahYar your route companion' --es voice_profile musa --es voice_language en --ez voice_preview true
-            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=musa lang=en preview=true' && break; sleep .25; done
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile minel --es voice_language fa --es voice_text 'سلام من مینل هستم مسیر آرام تر را برایت پیدا کردم دویست متر جلوتر به راست بپیچ'
+            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' && break; sleep .25; done
+            adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true'
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile saeid --es voice_language en --es voice_text 'Hi I am Saeid your calm route companion. In three hundred meters take the exit on the right.'
+            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=en preview=true' && break; sleep .25; done
             adb logcat -d > RahYar-0.14.1-multivoice-logcat.txt
             grep RahYarVoice RahYar-0.14.1-multivoice-logcat.txt > RahYar-0.14.1-multivoice-proof.txt || true
             cat RahYar-0.14.1-multivoice-proof.txt
-            grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true' RahYar-0.14.1-multivoice-proof.txt
-            grep -q 'PASS BUILTIN_VOICE_PLAYED profile=musa lang=en preview=true' RahYar-0.14.1-multivoice-proof.txt
-            ! grep -q 'Built-in voice init failed' RahYar-0.14.1-multivoice-logcat.txt
-            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app, PID' RahYar-0.14.1-multivoice-logcat.txt
+            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=en preview=true' RahYar-0.14.1-multivoice-proof.txt
+            ! grep -q 'RahYar voice init failed' RahYar-0.14.1-multivoice-logcat.txt
+            ! grep -q 'FATAL EXCEPTION.*ir.rahyar.app' RahYar-0.14.1-multivoice-logcat.txt
             adb shell pidof ir.rahyar.app | grep -q '[0-9]'
 
       - name: Upload diagnostics
