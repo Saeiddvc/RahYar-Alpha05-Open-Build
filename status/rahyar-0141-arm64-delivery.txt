@@ -1,0 +1,5 @@
+run_id=32411147634
+status=success
+size_bytes=279512148
+artifact_name=RahYar-0.14.1-alpha-p0-ARM64
+updated_at=2026-08-20T19:56:31Z
