@@ -33,7 +33,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Build cleaned ARM64 0.14.1
+      - name: Build fixed ARM64 0.14.1
         working-directory: source
         run: |
           set -euo pipefail
@@ -51,7 +51,23 @@ jobs:
           python tools/apply_rahyar_0133_layer_state.py
           python tools/apply_rahyar_0133_validation_hook.py
           python tools/apply_rahyar_0134_traffic_font.py
-          python tools/stage_rahyar_0135_ci_typography.py
+
+          # Shipping typography: exact approved IRANSans FaNum family, not the CI B-Traffic placeholder.
+          mkdir -p app/src/main/assets/fonts
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' \
+            -o app/src/main/assets/fonts/iransans_fanum_regular.ttf
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' \
+            -o app/src/main/assets/fonts/iransans_fanum_medium.ttf
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' \
+            -o app/src/main/assets/fonts/iransans_fanum_bold.ttf
+          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
+          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
+          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
+          python tools/apply_rahyar_0135_iransans_font.py
+
           python tools/apply_rahyar_0136_navigation_control.py
           python tools/apply_rahyar_0136_weather_guard.py
           python tools/apply_rahyar_0137_closeout_feedback.py
@@ -73,6 +89,8 @@ jobs:
           python tools/fix_rahyar_0141_voice_icon.py
           python tools/fix_rahyar_0141_voice_service_lifetime.py
           python tools/apply_rahyar_0141_voice_preview_test_hook.py
+          python tools/apply_rahyar_0141_settings_hotfix.py
+
           rm -rf app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium
           python - <<'PY'
           from pathlib import Path
@@ -83,21 +101,36 @@ jobs:
           s=s.replace(marker, marker+'\n        ndk { abiFilters += listOf("arm64-v8a") }',1)
           p.write_text(s)
           PY
+
           grep -q 'versionName = "0.14.1-alpha-p0"' app/build.gradle.kts
           grep -q 'مینل · زن' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
-          gradle assembleDebug -x prepareRahYarSources --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-alpha-p0-ARM64.apk
-          sha256sum RahYar-0.14.1-alpha-p0-ARM64.apk > RahYar-0.14.1-alpha-p0-ARM64.sha256
-          ls -lh RahYar-0.14.1-alpha-p0-ARM64.apk
+          grep -q 'saveNumericValue(e, key, def)' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'e.setText(trimNumber(val));' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  app/src/main/assets/fonts/iransans_fanum_regular.ttf' | sha256sum -c -
+          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  app/src/main/assets/fonts/iransans_fanum_medium.ttf' | sha256sum -c -
+          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  app/src/main/assets/fonts/iransans_fanum_bold.ttf' | sha256sum -c -
 
-      - name: Upload ARM64 APK
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk
+          sha256sum RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk > RahYar-0.14.1-alpha-p0-ARM64-FIXED.sha256
+
+          # Verify the built APK carries the exact shipping fonts, not placeholder bytes.
+          unzip -p RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk assets/fonts/iransans_fanum_regular.ttf > /tmp/iransans-regular.ttf
+          unzip -p RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk assets/fonts/iransans_fanum_medium.ttf > /tmp/iransans-medium.ttf
+          unzip -p RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk assets/fonts/iransans_fanum_bold.ttf > /tmp/iransans-bold.ttf
+          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  /tmp/iransans-regular.ttf' | sha256sum -c -
+          echo 'd8ab70132d0e59cd873a1fa212a6ae8b2867495a013fa55484615c360ce74cc0  /tmp/iransans-medium.ttf' | sha256sum -c -
+          echo '96d8e88e864c66c15447f27429711f6c3e5d14c5d9d633edd2bf6c22f870dd19  /tmp/iransans-bold.ttf' | sha256sum -c -
+          ls -lh RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk
+
+      - name: Upload fixed ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.14.1-alpha-p0-ARM64
+          name: RahYar-0.14.1-alpha-p0-ARM64-FIXED
           path: |
-            source/RahYar-0.14.1-alpha-p0-ARM64.apk
-            source/RahYar-0.14.1-alpha-p0-ARM64.sha256
+            source/RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk
+            source/RahYar-0.14.1-alpha-p0-ARM64-FIXED.sha256
           retention-days: 14
 
       - name: Publish delivery status
@@ -105,8 +138,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          SIZE=$(stat -c%s source/RahYar-0.14.1-alpha-p0-ARM64.apk 2>/dev/null || echo 0)
-          printf 'run_id=%s\nstatus=%s\nsize_bytes=%s\nartifact_name=%s\nupdated_at=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$SIZE" 'RahYar-0.14.1-alpha-p0-ARM64' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/status.txt
+          SIZE=$(stat -c%s source/RahYar-0.14.1-alpha-p0-ARM64-FIXED.apk 2>/dev/null || echo 0)
+          printf 'run_id=%s\nstatus=%s\nsize_bytes=%s\nartifact_name=%s\nupdated_at=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$SIZE" 'RahYar-0.14.1-alpha-p0-ARM64-FIXED' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/status.txt
           b64=$(base64 -w0 /tmp/status.txt)
           api="repos/${{ github.repository }}/contents/status/rahyar-0141-arm64-delivery.txt"
           sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
