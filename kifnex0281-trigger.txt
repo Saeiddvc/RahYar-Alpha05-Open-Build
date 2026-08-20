@@ -1,0 +1,2 @@
+KifNex Alpha28.1 SMS E2E trigger
+source_ref=kifnex-alpha281-android
