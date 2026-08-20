@@ -1,1 +1,1 @@
-trigger 2026-08-20 RahYar 0.14.1 ARM64 cleaned delivery v2
+trigger 2026-08-21 RahYar 0.14.1 ARM64 real-IRANSans numeric-settings fix v3
