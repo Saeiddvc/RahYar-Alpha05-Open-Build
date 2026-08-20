@@ -1,5 +1,5 @@
 KifNex Alpha28.1 SMS E2E trigger
 source_ref=kifnex-alpha281-android
-source_commit=856b47972b9a6c8f6e833975cb37e8de57859783
-trigger=smoke-v2-sequenced-single-segment
-triggered_at=2026-08-20T21:07:00+03:30
+source_commit=68959d2494fe0a298606a69ba42ddb1cb94a4775
+trigger=smoke-v2.1-35s-wait-window
+triggered_at=2026-08-20T21:15:00+03:30
