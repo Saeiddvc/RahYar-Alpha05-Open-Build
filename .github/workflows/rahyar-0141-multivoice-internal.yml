@@ -1,0 +1,135 @@
+name: RahYar 0.14.1 Internal Multi-Voice Preview
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release0141-multivoice-internal-trigger.txt'
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-stabilization-0141
+
+jobs:
+  multivoice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Generate 0.14.1 bilingual voice candidate
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/stage_rahyar_0140_embedded_tts.py
+          python tools/stage_rahyar_0141_multivoice.py
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+          python tools/apply_rahyar_0139_ui_behavior.py
+          python tools/apply_rahyar_0140_embedded_tts.py
+          python tools/apply_rahyar_0141_camera_theme.py
+          python tools/apply_rahyar_0141_waypoint_weather.py
+          python tools/apply_rahyar_0141_multivoice.py
+          python tools/fix_rahyar_0141_voice_icon.py
+          python tools/fix_rahyar_0141_voice_service_lifetime.py
+          python tools/apply_rahyar_0141_voice_preview_test_hook.py
+          grep -q 'مینل · زن' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'rahyar_voice_preview_test' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE.apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Real Minel and Saeid preview gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save
+          disable-animations: true
+          working-directory: source
+          script: |
+            adb wait-for-device
+            adb install -r RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE.apk
+            adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
+            adb logcat -c
+            adb shell am force-stop ir.rahyar.app
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile khadijah --es voice_language fa --es voice_text 'سلام. من مینل هستم. همراه آرام و روشن مسیر تو.'
+            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true' && break; sleep .25; done
+            adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=khadijah lang=fa preview=true'
+            adb shell am force-stop ir.rahyar.app
+            adb logcat -c
+            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile musa --es voice_language en --es voice_text 'Hello. I am Saeid. Your calm and clear RahYar companion.'
+            for i in $(seq 1 720); do adb logcat -d | grep -q 'PASS BUILTIN_VOICE_PLAYED profile=musa lang=en preview=true' && break; sleep .25; done
+            adb logcat -d > RahYar-0.14.1-multivoice-internal-logcat.txt
+            grep RahYarVoice RahYar-0.14.1-multivoice-internal-logcat.txt > RahYar-0.14.1-multivoice-internal-proof.txt || true
+            cat RahYar-0.14.1-multivoice-internal-proof.txt
+            grep -q 'PASS BUILTIN_VOICE_PLAYED profile=musa lang=en preview=true' RahYar-0.14.1-multivoice-internal-proof.txt
+            ! grep -q 'Built-in voice init failed' RahYar-0.14.1-multivoice-internal-logcat.txt
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE
+          path: |
+            source/RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE.apk
+            source/RahYar-0.14.1-multivoice-internal-logcat.txt
+            source/RahYar-0.14.1-multivoice-internal-proof.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Publish status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf 'run_id=%s\nconclusion=%s\nstatus=completed\nupdated_at=%s\nartifact_name=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'RahYar-0.14.1-multivoice-internal-CI-NOT-RELEASE' > /tmp/status.txt
+          b64=$(base64 -w0 /tmp/status.txt); api="repos/${{ github.repository }}/contents/status/rahyar-0141-multivoice-internal.txt"; sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update 0.14.1 internal multivoice status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add 0.14.1 internal multivoice status' -f content="$b64" >/dev/null; fi
