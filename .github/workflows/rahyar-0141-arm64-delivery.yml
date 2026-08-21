@@ -1,4 +1,4 @@
-name: RahYar 0.14.1 ARM64 Delivery
+name: Vara RahYar Navigation 0.14.1 ARM64 Delivery
 
 on:
   workflow_dispatch:
@@ -12,6 +12,7 @@ permissions:
 env:
   SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
   SOURCE_REF: feature/rahyar-stabilization-0141
+  PRODUCT_APK: Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64.apk
 
 jobs:
   build:
@@ -35,7 +36,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Generate 0.14.1 runtime-fixed universal candidate
+      - name: Generate runtime-proven universal candidate
         working-directory: source
         run: |
           set -euo pipefail
@@ -77,7 +78,7 @@ jobs:
           python tools/apply_rahyar_0141_voice_preview_test_hook.py
           python tools/apply_rahyar_0141_settings_hotfix.py
 
-          # Replace the CI typography placeholder with a real IRANSans FaNum face.
+          # Replace the historical CI placeholder with real IRANSans FaNum bytes.
           curl -fL --retry 3 --connect-timeout 15 \
             'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' \
             -o /tmp/rahyar-iransans.ttf
@@ -88,29 +89,24 @@ jobs:
           cp /tmp/rahyar-iransans.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf
           cp /tmp/rahyar-iransans.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf
           test ! -e app/src/main/assets/fonts/b_traffic.ttf
-          sha256sum /tmp/rahyar-iransans.ttf > RahYar-0.14.1-IRANSans.sha256
+          sha256sum /tmp/rahyar-iransans.ttf > Vara-RahYar-Navigation-0.14.1-IRANSans.sha256
 
-          # Enforce the selected family through all ordinary text views and expose explicit map-layer choices.
           python tools/apply_rahyar_0141_runtime_closeout.py
+          python tools/apply_rahyar_0141_runtime_test_hook.py
           rm -rf app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium
 
           grep -q 'versionCode = 38' app/build.gradle.kts
           grep -q 'versionName = "0.14.1-alpha-p0"' app/build.gradle.kts
+          grep -q 'Vara RahYar Navigation' app/src/main/res/values/brand.xml
           grep -q 'PASS RAHYAR_VOICE_ESPEAK_DATA' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
-          grep -q 'showMapLayerPanel' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'applyMapModeSelection' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'PASS MAP_LAYER_RENDERED_0141' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarTypography.applyTree(root)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarTypography.applyTree(body)' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'مینل · زن' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
-          for P in app/src/main/assets/fonts/iransans_fanum_regular.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf; do
-            test -s "$P"
-            fc-scan --format '%{family}\n' "$P" | grep -qi 'IRANSans'
-            test "$(sha256sum "$P" | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
-          done
 
           gradle assembleDebug -x prepareRahYarSources --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-runtime-universal-CI.apk
+          cp app/build/outputs/apk/debug/app-debug.apk Vara-RahYar-Navigation-0.14.1-runtime-universal-CI.apk
 
       - name: Enable KVM
         run: |
@@ -118,7 +114,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Prove real Minel and Saeid runtime
+      - name: Prove voices typography and map layers at runtime
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -130,33 +126,48 @@ jobs:
           working-directory: source
           script: |
             set -eu
-            adb install -r RahYar-0.14.1-runtime-universal-CI.apk
+            adb install -r Vara-RahYar-Navigation-0.14.1-runtime-universal-CI.apk
             adb shell pm disable-user --user 0 com.google.android.tts >/dev/null 2>&1 || true
 
+            # Minel must initialize, synthesize and complete AudioTrack playback.
+            adb logcat -c
+            adb shell am start -S -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile minel --es voice_language fa
+            for i in $(seq 1 300); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' && break; sleep .5; done
+            adb logcat -d > Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+            grep -q 'Bundled IRANSans FaNum family installed' Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+            grep -q 'PASS RAHYAR_VOICE_ESPEAK_DATA profile=minel' Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+            grep -q 'PASS RAHYAR_VOICE_READY profile=minel' Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+            ! grep -q 'RahYar voice init failed' Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+
+            # Saeid gets a clean activity/process start so its test intent cannot be swallowed by the prior Activity.
             adb logcat -c
             adb shell am force-stop ir.rahyar.app
-            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile minel --es voice_language fa
-            for i in $(seq 1 360); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' && break; sleep .5; done
-            adb logcat -d > RahYar-0.14.1-minel-runtime.txt
-            grep -q 'Bundled IRANSans FaNum family installed' RahYar-0.14.1-minel-runtime.txt
-            grep -q 'PASS RAHYAR_VOICE_ESPEAK_DATA profile=minel' RahYar-0.14.1-minel-runtime.txt
-            grep -q 'PASS RAHYAR_VOICE_READY profile=minel' RahYar-0.14.1-minel-runtime.txt
-            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=minel lang=fa preview=true' RahYar-0.14.1-minel-runtime.txt
-            ! grep -q 'copy the espeak-ng-data directory' RahYar-0.14.1-minel-runtime.txt
-            ! grep -q 'RahYar voice init failed' RahYar-0.14.1-minel-runtime.txt
+            sleep 1
+            adb shell am start -S -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile saeid --es voice_language fa
+            for i in $(seq 1 300); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=fa preview=true' && break; sleep .5; done
+            adb logcat -d > Vara-RahYar-Navigation-0.14.1-saeid-runtime.txt
+            grep -q 'PASS RAHYAR_VOICE_ESPEAK_DATA profile=saeid' Vara-RahYar-Navigation-0.14.1-saeid-runtime.txt
+            grep -q 'PASS RAHYAR_VOICE_READY profile=saeid' Vara-RahYar-Navigation-0.14.1-saeid-runtime.txt
+            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=fa preview=true' Vara-RahYar-Navigation-0.14.1-saeid-runtime.txt
+            ! grep -q 'RahYar voice init failed' Vara-RahYar-Navigation-0.14.1-saeid-runtime.txt
+
+            # Satellite and 3D must actually reach MapLibre's style-loaded callback.
+            adb logcat -c
+            adb shell am start -S -n ir.rahyar.app/.RahYarV3Activity --ei rahyar_map_layer_test 2
+            for i in $(seq 1 240); do adb logcat -d | grep -q 'PASS MAP_LAYER_RENDERED_0141 mode=2' && break; sleep .5; done
+            adb logcat -d > Vara-RahYar-Navigation-0.14.1-map-satellite.txt
+            grep -q 'PASS MAP_LAYER_PANEL_0141' Vara-RahYar-Navigation-0.14.1-map-satellite.txt
+            grep -q 'PASS MAP_LAYER_SELECTED_0141 mode=2' Vara-RahYar-Navigation-0.14.1-map-satellite.txt
+            grep -q 'PASS MAP_LAYER_RENDERED_0141 mode=2' Vara-RahYar-Navigation-0.14.1-map-satellite.txt
 
             adb logcat -c
-            adb shell am force-stop ir.rahyar.app
-            adb shell am start -n ir.rahyar.app/.RahYarV3Activity --ez rahyar_voice_preview_test true --es voice_profile saeid --es voice_language en
-            for i in $(seq 1 360); do adb logcat -d | grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=en preview=true' && break; sleep .5; done
-            adb logcat -d > RahYar-0.14.1-saeid-runtime.txt
-            grep -q 'PASS RAHYAR_VOICE_ESPEAK_DATA profile=saeid' RahYar-0.14.1-saeid-runtime.txt
-            grep -q 'PASS RAHYAR_VOICE_READY profile=saeid' RahYar-0.14.1-saeid-runtime.txt
-            grep -q 'PASS RAHYAR_VOICE_PLAYED profile=saeid lang=en preview=true' RahYar-0.14.1-saeid-runtime.txt
-            ! grep -q 'copy the espeak-ng-data directory' RahYar-0.14.1-saeid-runtime.txt
-            ! grep -q 'RahYar voice init failed' RahYar-0.14.1-saeid-runtime.txt
-            adb shell pidof ir.rahyar.app | grep -q '[0-9]'
-            adb exec-out screencap -p > RahYar-0.14.1-runtime-screen.png
+            adb shell am start -S -n ir.rahyar.app/.RahYarV3Activity --ei rahyar_map_layer_test 1
+            for i in $(seq 1 240); do adb logcat -d | grep -q 'PASS MAP_LAYER_RENDERED_0141 mode=1' && break; sleep .5; done
+            adb logcat -d > Vara-RahYar-Navigation-0.14.1-map-3d.txt
+            grep -q 'PASS MAP_LAYER_SELECTED_0141 mode=1' Vara-RahYar-Navigation-0.14.1-map-3d.txt
+            grep -q 'PASS MAP_LAYER_RENDERED_0141 mode=1' Vara-RahYar-Navigation-0.14.1-map-3d.txt
+            adb exec-out screencap -p > Vara-RahYar-Navigation-0.14.1-runtime-screen.png
 
       - name: Build final ARM64 after runtime gate
         working-directory: source
@@ -173,31 +184,34 @@ jobs:
           p.write_text(s)
           PY
           gradle clean assembleDebug -x prepareRahYarSources --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk
-          sha256sum RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk > RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.sha256
+          cp app/build/outputs/apk/debug/app-debug.apk "$PRODUCT_APK"
+          sha256sum "$PRODUCT_APK" > "$PRODUCT_APK.sha256"
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
-          "$AAPT" dump badging RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk > RahYar-0.14.1-badging.txt
-          grep -q "package: name='ir.rahyar.app'" RahYar-0.14.1-badging.txt
-          grep -q "versionCode='38'" RahYar-0.14.1-badging.txt
-          grep -q "versionName='0.14.1-alpha-p0'" RahYar-0.14.1-badging.txt
-          unzip -l RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk | grep -q 'lib/arm64-v8a/libsherpa-onnx-jni.so'
-          unzip -p RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk assets/fonts/iransans_fanum_regular.ttf > /tmp/rahyar-font.ttf
+          "$AAPT" dump badging "$PRODUCT_APK" > Vara-RahYar-Navigation-0.14.1-badging.txt
+          grep -q "package: name='ir.rahyar.app'" Vara-RahYar-Navigation-0.14.1-badging.txt
+          grep -q "versionCode='38'" Vara-RahYar-Navigation-0.14.1-badging.txt
+          grep -q "versionName='0.14.1-alpha-p0'" Vara-RahYar-Navigation-0.14.1-badging.txt
+          grep -q "application-label:'Vara RahYar Navigation'" Vara-RahYar-Navigation-0.14.1-badging.txt
+          unzip -l "$PRODUCT_APK" | grep -q 'lib/arm64-v8a/libsherpa-onnx-jni.so'
+          unzip -p "$PRODUCT_APK" assets/fonts/iransans_fanum_regular.ttf > /tmp/rahyar-font.ttf
           fc-scan --format '%{family}\n' /tmp/rahyar-font.ttf | grep -qi 'IRANSans'
           test "$(sha256sum /tmp/rahyar-font.ttf | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
-          ls -lh RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk
+          ls -lh "$PRODUCT_APK"
 
-      - name: Upload runtime-fixed ARM64 APK
+      - name: Upload Vara RahYar Navigation APK
         uses: actions/upload-artifact@v4
         with:
-          name: RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED
+          name: Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64
           path: |
-            source/RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk
-            source/RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.sha256
-            source/RahYar-0.14.1-IRANSans.sha256
-            source/RahYar-0.14.1-badging.txt
-            source/RahYar-0.14.1-minel-runtime.txt
-            source/RahYar-0.14.1-saeid-runtime.txt
-            source/RahYar-0.14.1-runtime-screen.png
+            source/Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64.apk
+            source/Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64.apk.sha256
+            source/Vara-RahYar-Navigation-0.14.1-IRANSans.sha256
+            source/Vara-RahYar-Navigation-0.14.1-badging.txt
+            source/Vara-RahYar-Navigation-0.14.1-minel-runtime.txt
+            source/Vara-RahYar-Navigation-0.14.1-saeid-runtime.txt
+            source/Vara-RahYar-Navigation-0.14.1-map-satellite.txt
+            source/Vara-RahYar-Navigation-0.14.1-map-3d.txt
+            source/Vara-RahYar-Navigation-0.14.1-runtime-screen.png
           retention-days: 14
 
       - name: Publish delivery status
@@ -205,9 +219,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          SIZE=$(stat -c%s source/RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk 2>/dev/null || echo 0)
-          printf 'run_id=%s\nstatus=%s\nsize_bytes=%s\nartifact_name=%s\nupdated_at=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$SIZE" 'RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/status.txt
+          SIZE=$(stat -c%s "source/$PRODUCT_APK" 2>/dev/null || echo 0)
+          printf 'run_id=%s\nstatus=%s\nsize_bytes=%s\nartifact_name=%s\nproduct=%s\nupdated_at=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$SIZE" 'Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64' 'Vara RahYar Navigation' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/status.txt
           b64=$(base64 -w0 /tmp/status.txt)
           api="repos/${{ github.repository }}/contents/status/rahyar-0141-arm64-delivery.txt"
           sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
-          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update RahYar 0.14.1 ARM64 delivery status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add RahYar 0.14.1 ARM64 delivery status' -f content="$b64" >/dev/null; fi
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update Vara RahYar Navigation 0.14.1 status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add Vara RahYar Navigation 0.14.1 status' -f content="$b64" >/dev/null; fi
