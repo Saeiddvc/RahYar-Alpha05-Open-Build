@@ -1,1 +1,1 @@
-trigger 2026-08-21 RahYar 0.14.1 real voice typography map-layer runtime gate v5
+trigger 2026-08-21 RahYar 0.14.1 real IRANSans voice map-layer runtime gate v6
