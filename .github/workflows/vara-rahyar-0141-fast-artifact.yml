@@ -1,0 +1,146 @@
+name: Vara RahYar Navigation 0.14.1 Current APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'vara-rahyar-0141-fast-trigger.txt'
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-stabilization-0141
+  PRODUCT_APK: Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64-CURRENT.apk
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Generate exact current 0.14.1 source
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python tools/stage_rahyar_0140_embedded_tts.py
+          python tools/stage_rahyar_0141_multivoice.py
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+          python tools/apply_rahyar_0139_ui_behavior.py
+          python tools/apply_rahyar_0140_embedded_tts.py
+          python tools/apply_rahyar_0141_camera_theme.py
+          python tools/apply_rahyar_0141_waypoint_weather.py
+          python tools/apply_rahyar_0141_multivoice.py
+          python tools/fix_rahyar_0141_voice_personas.py
+          python tools/fix_rahyar_0141_voice_icon.py
+          python tools/fix_rahyar_0141_voice_service_lifetime.py
+          python tools/apply_rahyar_0141_voice_preview_test_hook.py
+          python tools/apply_rahyar_0141_settings_hotfix.py
+
+          curl -fL --retry 3 --connect-timeout 15 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' -o app/src/main/assets/fonts/iransans_fanum_regular.ttf
+          curl -fL --retry 3 --connect-timeout 15 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' -o app/src/main/assets/fonts/iransans_fanum_medium.ttf
+          curl -fL --retry 3 --connect-timeout 15 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' -o app/src/main/assets/fonts/iransans_fanum_bold.ttf
+          for f in app/src/main/assets/fonts/iransans_fanum_regular.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf; do
+            test "$(stat -c%s "$f")" -gt 90000
+            fc-scan --format '%{family}\n' "$f" | grep -qi 'IRANSans'
+          done
+          test "$(sha256sum app/src/main/assets/fonts/iransans_fanum_regular.ttf | cut -d' ' -f1)" != "$(sha256sum app/src/main/assets/fonts/iransans_fanum_medium.ttf | cut -d' ' -f1)"
+          test "$(sha256sum app/src/main/assets/fonts/iransans_fanum_medium.ttf | cut -d' ' -f1)" != "$(sha256sum app/src/main/assets/fonts/iransans_fanum_bold.ttf | cut -d' ' -f1)"
+
+          python tools/apply_rahyar_0141_runtime_closeout.py
+          python tools/apply_vara_rahyar_0141_ui_closeout.py
+          rm -rf app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium
+
+          grep -q 'versionCode = 38' app/build.gradle.kts
+          grep -q 'versionName = "0.14.1-alpha-p0"' app/build.gradle.kts
+          grep -q 'mediumFace != null' app/src/main/java/ir/rahyar/app/RahYarTypography.java
+          grep -q 'Vara RahYar' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'km/h' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'applySelectedMapThemeNow' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'مینل · زن' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
+          grep -q 'PASS RAHYAR_VOICE_ESPEAK_DATA' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
+
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle.kts')
+          s=p.read_text()
+          marker='defaultConfig {'
+          assert marker in s
+          if 'abiFilters += listOf("arm64-v8a")' not in s:
+              s=s.replace(marker,marker+'\n        ndk { abiFilters += listOf("arm64-v8a") }',1)
+          p.write_text(s)
+          PY
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk "$PRODUCT_APK"
+          sha256sum "$PRODUCT_APK" > "$PRODUCT_APK.sha256"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "$PRODUCT_APK" > Vara-RahYar-Navigation-0.14.1-current-badging.txt
+          grep -q "package: name='ir.rahyar.app'" Vara-RahYar-Navigation-0.14.1-current-badging.txt
+          grep -q "versionCode='38'" Vara-RahYar-Navigation-0.14.1-current-badging.txt
+          grep -q "versionName='0.14.1-alpha-p0'" Vara-RahYar-Navigation-0.14.1-current-badging.txt
+          unzip -l "$PRODUCT_APK" | grep -q 'lib/arm64-v8a/libsherpa-onnx-jni.so'
+          ls -lh "$PRODUCT_APK"
+
+      - name: Upload current APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-RahYar-Navigation-0.14.1-ARM64-CURRENT
+          path: |
+            source/Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64-CURRENT.apk
+            source/Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64-CURRENT.apk.sha256
+            source/Vara-RahYar-Navigation-0.14.1-current-badging.txt
+          retention-days: 14
+
+      - name: Publish current APK status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SIZE=$(stat -c%s "source/$PRODUCT_APK" 2>/dev/null || echo 0)
+          printf 'run_id=%s\nstatus=%s\nsize_bytes=%s\nartifact_name=%s\nsource_commit=%s\nupdated_at=%s\n' '${{ github.run_id }}' '${{ job.status }}' "$SIZE" 'Vara-RahYar-Navigation-0.14.1-ARM64-CURRENT' "$(git -C source rev-parse HEAD 2>/dev/null || echo unknown)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/status.txt
+          b64=$(base64 -w0 /tmp/status.txt)
+          api="repos/${{ github.repository }}/contents/status/vara-rahyar-0141-current.txt"
+          sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then gh api --method PUT "$api" -f message='Update Vara RahYar 0.14.1 current APK status' -f content="$b64" -f sha="$sha" >/dev/null; else gh api --method PUT "$api" -f message='Add Vara RahYar 0.14.1 current APK status' -f content="$b64" >/dev/null; fi
