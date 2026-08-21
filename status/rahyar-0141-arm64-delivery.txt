@@ -1,5 +1,6 @@
-run_id=32495568974
+run_id=32499728944
 status=failure
 size_bytes=0
-artifact_name=RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED
-updated_at=2026-08-21T15:12:07Z
+artifact_name=Vara-RahYar-Navigation-0.14.1-alpha-p0-ARM64
+product=Vara RahYar Navigation
+updated_at=2026-08-21T15:51:06Z
