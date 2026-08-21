@@ -1,4 +1,4 @@
 Vara KifNex Smart Wallet v1 RC1 trigger
 source_ref=vara-kifnex-smart-wallet-v1-rc1
-source_commit=4e2a0100cef0bbc7d820fde8c791360de108ba91
-trigger=release-build-branding-and-sms-e2e
+source_commit=660d232250d212c5779d2720a8a4c0dc87cb5c25
+trigger=non-debuggable-release-sms-e2e-ui-proof
