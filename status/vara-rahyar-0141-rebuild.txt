@@ -1,0 +1,7 @@
+run_id=32528898310
+status=success
+size_bytes=279644268
+artifact_name=Vara-RahYar-Navigation-0.14.1-ARM64-REBUILD
+product=Vara RahYar Navigation
+source_ref=feature/rahyar-stabilization-0141
+updated_at=2026-08-21T21:38:29Z
