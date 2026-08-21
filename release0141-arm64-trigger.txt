@@ -1,1 +1,1 @@
-trigger 2026-08-21 Vara RahYar Navigation 0.14.1 hardened final gate v9
+trigger 2026-08-21 Vara RahYar Navigation 0.14.1 sequential voice map gate v10
