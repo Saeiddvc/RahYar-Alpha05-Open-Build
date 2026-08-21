@@ -1,0 +1,6 @@
+run_id=32529324365
+status=success
+size_bytes=279627884
+artifact_name=Vara-RahYar-Navigation-0.14.1-ARM64-CURRENT
+source_commit=118b61cc9b351e5525e54226bb5e9344d0999742
+updated_at=2026-08-21T21:38:49Z
