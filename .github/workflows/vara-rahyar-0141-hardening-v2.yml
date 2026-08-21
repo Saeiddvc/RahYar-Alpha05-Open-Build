@@ -89,6 +89,7 @@ jobs:
           python tools/apply_rahyar_0141_runtime_closeout.py
           python tools/apply_vara_rahyar_0141_ui_closeout.py
           python tools/apply_vara_rahyar_0141_product_hardening_v2.py
+          python tools/fix_vara_rahyar_0141_hardening_compile.py
           rm -rf app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium
 
           grep -q 'versionCode = 38' app/build.gradle.kts
