@@ -1,0 +1,207 @@
+name: Vara KifNex Smart Wallet 1.0.0 RC1
+
+on:
+  push:
+    paths:
+      - 'vara-kifnex-v1-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REF: vara-kifnex-smart-wallet-v1-rc1
+  APK_NAME: Vara-KifNex-Smart-Wallet-1.0.0-RC1.apk
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: buildrepo
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Saeiddvc/SaeidNavigator-Android
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply validated source patches and Vara branding
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          python3 patch_alpha20.py
+          python3 patch_alpha21.py
+          python3 patch_alpha22.py
+          python3 patch_alpha22b.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha23.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha23_ui.py
+          python3 patch_alpha24.py || true
+          python3 patch_alpha24_datafix.py
+          python3 patch_alpha24b_hotfix.py
+          python3 patch_alpha24b.py
+          python3 patch_alpha24_ui.py
+          python3 patch_alpha24_dialogstack.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha25_investmentlab.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha26_realdata.py
+          python3 patch_alpha26_testentry.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha27_directsms.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha28_bank_intelligence.py
+          python3 patch_alpha28_font_fallback.py
+          python3 patch_alpha21_compilefix.py
+          python3 patch_alpha281_sms_e2e.py
+          python3 patch_vara_kifnex_v1.py
+          grep -q 'KifNexSms' app/src/main/java/ir/kifnex/app/FinancialSmsReceiver.java
+          grep -q "versionName '1.0.0-rc.1'" app/build.gradle
+          grep -q 'android:label="Vara KifNex Smart Wallet"' app/src/main/AndroidManifest.xml
+          grep -q 'Vara KifNex Smart Wallet' app/src/main/java/ir/kifnex/app/MainActivity.java
+          grep -q 'RECEIVE_SMS' app/src/main/AndroidManifest.xml
+          ! grep -q 'READ_SMS' app/src/main/AndroidManifest.xml
+          ! grep -q 'android:permission="android.permission.BROADCAST_SMS"' app/src/main/AndroidManifest.xml
+
+      - name: Prepare stable pilot signing
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          openssl pkcs12 -export -inkey kifnex-alpha-test-key.pem -in kifnex-alpha-test-cert.pem -name kifnex-alpha -out kifnex-alpha-test.p12 -passout pass:kifnexAlpha2026
+          rm -f app/kifnex-alpha-test.keystore
+          keytool -importkeystore -srckeystore kifnex-alpha-test.p12 -srcstoretype PKCS12 -srcstorepass kifnexAlpha2026 -srcalias kifnex-alpha -destkeystore app/kifnex-alpha-test.keystore -deststoretype JKS -deststorepass kifnexAlpha2026 -destkeypass kifnexAlpha2026 -destalias kifnex-alpha -noprompt
+
+      - name: Deterministic tests
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          rm -rf pure-out && mkdir pure-out
+          javac -d pure-out \
+            app/src/main/java/ir/kifnex/app/InvestmentCalculator.java \
+            app/src/main/java/ir/kifnex/app/InvestmentCatalog.java \
+            app/src/main/java/ir/kifnex/app/BankSmsAnalyzer.java \
+            app/src/main/java/ir/kifnex/app/PersianNameValidator.java \
+            calculator-tests/ir/kifnex/app/InvestmentCalculatorTest.java \
+            parser-tests/ir/kifnex/app/BankSmsAnalyzerTest.java \
+            parser-tests/ir/kifnex/app/PersianNameValidatorTest.java
+          java -cp pure-out ir.kifnex.app.InvestmentCalculatorTest | tee vara-kifnex-calculator-tests.txt
+          java -cp pure-out ir.kifnex.app.BankSmsAnalyzerTest | tee vara-kifnex-bank-parser-tests.txt
+          java -cp pure-out ir.kifnex.app.PersianNameValidatorTest | tee vara-kifnex-name-tests.txt
+          grep -q PASSED vara-kifnex-calculator-tests.txt
+          grep -q PASSED vara-kifnex-bank-parser-tests.txt
+          grep -q PASSED vara-kifnex-name-tests.txt
+
+      - name: Build release and inspect APK
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          gradle :app:assembleRelease --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "$APK_NAME"
+          sha256sum "$APK_NAME" > Vara-KifNex-Smart-Wallet-1.0.0-RC1.sha256
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "$APK_NAME" > vara-kifnex-badging.txt
+          "$AAPT" dump permissions "$APK_NAME" > vara-kifnex-permissions.txt
+          grep -q "package: name='ir.kifnex.app'" vara-kifnex-badging.txt
+          grep -q "versionCode='100001'" vara-kifnex-badging.txt
+          grep -q "versionName='1.0.0-rc.1'" vara-kifnex-badging.txt
+          grep -q "application-label:'Vara KifNex Smart Wallet'" vara-kifnex-badging.txt
+          grep -q 'android.permission.RECEIVE_SMS' vara-kifnex-permissions.txt
+          ! grep -q 'android.permission.READ_SMS' vara-kifnex-permissions.txt
+          ! unzip -l "$APK_NAME" | grep -Eqi 'iransans.*\.(ttf|otf)'
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK_NAME" > vara-kifnex-cert.txt
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Android 15 real SMS E2E and branded UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source/kifnex-preview
+          script: APK="$APK_NAME" bash smoke_alpha281.sh && grep -q 'Vara KifNex' kifnex0281.xml
+
+      - name: Create release manifest
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          cat > vara-kifnex-release-manifest.txt <<EOF
+          product=Vara KifNex Smart Wallet
+          version=1.0.0-rc.1
+          version_code=100001
+          package=ir.kifnex.app
+          android_api_tested=35
+          direct_sms_e2e=pass
+          parser_tests=pass
+          read_sms=absent
+          signing=pilot-test-certificate
+          EOF
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-KifNex-Smart-Wallet-1.0.0-RC1-diagnostics
+          path: |
+            source/kifnex-preview/kifnex0281-*.txt
+            source/kifnex-preview/kifnex0281-*.xml
+            source/kifnex-preview/kifnex0281-*.png
+            source/kifnex-preview/vara-kifnex-*.txt
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-RC1.sha256
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload validated release candidate
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-KifNex-Smart-Wallet-1.0.0-RC1
+          path: |
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-RC1.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-RC1.sha256
+            source/kifnex-preview/vara-kifnex-release-manifest.txt
+            source/kifnex-preview/vara-kifnex-badging.txt
+            source/kifnex-preview/vara-kifnex-permissions.txt
+            source/kifnex-preview/vara-kifnex-cert.txt
+            source/kifnex-preview/kifnex0281-real-sms-test.txt
+            source/kifnex-preview/kifnex0281-bank-intelligence.png
+            source/kifnex-preview/kifnex0281.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish release status
+        if: always()
+        working-directory: buildrepo
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -e
+          git config user.name 'Vara KifNex CI Status'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase || true
+          printf 'status=%s\nrun_id=%s\nsource_ref=%s\nproduct=%s\n' "$JOB_STATUS" "$GITHUB_RUN_ID" "$SOURCE_REF" 'Vara KifNex Smart Wallet' > vara-kifnex-v1-status.txt
+          git add -- vara-kifnex-v1-status.txt
+          git commit -m 'Publish Vara KifNex v1 status' || true
+          git push || true
