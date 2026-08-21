@@ -1,5 +1,5 @@
-run_id=32421230628
-status=success
-size_bytes=279627860
-artifact_name=RahYar-0.14.1-alpha-p0-ARM64-FIXED
-updated_at=2026-08-20T21:50:35Z
+run_id=32489186950
+status=failure
+size_bytes=0
+artifact_name=RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED
+updated_at=2026-08-21T13:54:20Z
