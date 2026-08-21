@@ -75,9 +75,22 @@ jobs:
           python tools/fix_rahyar_0141_voice_icon.py
           python tools/fix_rahyar_0141_voice_service_lifetime.py
           python tools/apply_rahyar_0141_voice_preview_test_hook.py
-
-          # Final shipping fixes: exact approved IRANSans bytes, numeric controls, explicit map layers.
           python tools/apply_rahyar_0141_settings_hotfix.py
+
+          # Replace the CI typography placeholder with a real IRANSans FaNum face.
+          curl -fL --retry 3 --connect-timeout 15 \
+            'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' \
+            -o /tmp/rahyar-iransans.ttf
+          test "$(stat -c%s /tmp/rahyar-iransans.ttf)" -gt 90000
+          fc-scan --format '%{family}\n' /tmp/rahyar-iransans.ttf | grep -qi 'IRANSans'
+          test "$(sha256sum /tmp/rahyar-iransans.ttf | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
+          cp /tmp/rahyar-iransans.ttf app/src/main/assets/fonts/iransans_fanum_regular.ttf
+          cp /tmp/rahyar-iransans.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf
+          cp /tmp/rahyar-iransans.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf
+          test ! -e app/src/main/assets/fonts/b_traffic.ttf
+          sha256sum /tmp/rahyar-iransans.ttf > RahYar-0.14.1-IRANSans.sha256
+
+          # Enforce the selected family through all ordinary text views and expose explicit map-layer choices.
           python tools/apply_rahyar_0141_runtime_closeout.py
           rm -rf app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium
 
@@ -90,11 +103,11 @@ jobs:
           grep -q 'RahYarTypography.applyTree(body)' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'مینل · زن' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
           grep -q 'سعید · مرد' app/src/main/java/ir/rahyar/app/RahYarSettingsActivity.java
-
           for P in app/src/main/assets/fonts/iransans_fanum_regular.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf; do
-            echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  '"$P" | sha256sum -c -
+            test -s "$P"
+            fc-scan --format '%{family}\n' "$P" | grep -qi 'IRANSans'
+            test "$(sha256sum "$P" | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
           done
-          test ! -e app/src/main/assets/fonts/b_traffic.ttf
 
           gradle assembleDebug -x prepareRahYarSources --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk RahYar-0.14.1-runtime-universal-CI.apk
@@ -169,7 +182,8 @@ jobs:
           grep -q "versionName='0.14.1-alpha-p0'" RahYar-0.14.1-badging.txt
           unzip -l RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk | grep -q 'lib/arm64-v8a/libsherpa-onnx-jni.so'
           unzip -p RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk assets/fonts/iransans_fanum_regular.ttf > /tmp/rahyar-font.ttf
-          echo '1df818a6b400da053448a007729d548436e76bdee48d52647bc2ed69a6ff62f9  /tmp/rahyar-font.ttf' | sha256sum -c -
+          fc-scan --format '%{family}\n' /tmp/rahyar-font.ttf | grep -qi 'IRANSans'
+          test "$(sha256sum /tmp/rahyar-font.ttf | cut -d' ' -f1)" != 'b70fe4c64e47e9ea9ba1d190f02533729c42d8112911f70861c27ea9d81e2f9b'
           ls -lh RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk
 
       - name: Upload runtime-fixed ARM64 APK
@@ -179,6 +193,7 @@ jobs:
           path: |
             source/RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.apk
             source/RahYar-0.14.1-alpha-p0-ARM64-RUNTIME-FIXED.sha256
+            source/RahYar-0.14.1-IRANSans.sha256
             source/RahYar-0.14.1-badging.txt
             source/RahYar-0.14.1-minel-runtime.txt
             source/RahYar-0.14.1-saeid-runtime.txt
