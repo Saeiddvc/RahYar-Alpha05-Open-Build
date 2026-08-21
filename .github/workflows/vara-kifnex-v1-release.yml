@@ -141,7 +141,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: source/kifnex-preview
-          script: APK="$APK_NAME" bash smoke_alpha281.sh && grep -q 'Vara KifNex' kifnex0281.xml
+          script: APK="$APK_NAME" bash smoke_vara_release.sh
 
       - name: Create release manifest
         working-directory: source/kifnex-preview
@@ -153,8 +153,10 @@ jobs:
           version_code=100001
           package=ir.kifnex.app
           android_api_tested=35
+          release_debuggable=false
           direct_sms_e2e=pass
           parser_tests=pass
+          shadow_ledger_ui=verified
           read_sms=absent
           signing=pilot-test-certificate
           EOF
@@ -165,10 +167,9 @@ jobs:
         with:
           name: Vara-KifNex-Smart-Wallet-1.0.0-RC1-diagnostics
           path: |
-            source/kifnex-preview/kifnex0281-*.txt
-            source/kifnex-preview/kifnex0281-*.xml
-            source/kifnex-preview/kifnex0281-*.png
             source/kifnex-preview/vara-kifnex-*.txt
+            source/kifnex-preview/vara-kifnex-release-*.xml
+            source/kifnex-preview/vara-kifnex-release-*.png
             source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-RC1.sha256
           if-no-files-found: warn
           retention-days: 14
@@ -185,9 +186,9 @@ jobs:
             source/kifnex-preview/vara-kifnex-badging.txt
             source/kifnex-preview/vara-kifnex-permissions.txt
             source/kifnex-preview/vara-kifnex-cert.txt
-            source/kifnex-preview/kifnex0281-real-sms-test.txt
-            source/kifnex-preview/kifnex0281-bank-intelligence.png
-            source/kifnex-preview/kifnex0281.xml
+            source/kifnex-preview/vara-kifnex-release-sms-test.txt
+            source/kifnex-preview/vara-kifnex-release-bank-intelligence.png
+            source/kifnex-preview/vara-kifnex-release-ui.xml
           if-no-files-found: error
           retention-days: 14
 
