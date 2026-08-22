@@ -1,0 +1,5 @@
+status=failure
+run_id=32571163937
+source_ref=vara-kifnex-smart-wallet-v1-production
+product=Vara KifNex Smart Wallet
+version=1.0.0
