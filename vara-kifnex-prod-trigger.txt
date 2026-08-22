@@ -1,0 +1,4 @@
+Vara KifNex Smart Wallet 1.0.0 production trigger
+source_ref=vara-kifnex-smart-wallet-v1-production
+source_commit=aacfe23a0724cfd2977d8a490c556d51c02b66f4
+mode=production-safe-handoff
