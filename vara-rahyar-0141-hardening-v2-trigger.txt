@@ -1,1 +1,1 @@
-trigger 2026-08-22 RahYar 0.14.1 localized-brand theme-scroll operational build
+trigger 2026-08-22 RahYar 0.14.1 selected-language brand consistency build
