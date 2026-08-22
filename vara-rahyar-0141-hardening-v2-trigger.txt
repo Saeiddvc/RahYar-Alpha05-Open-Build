@@ -1,1 +1,1 @@
-trigger 2026-08-22 RahYar 0.14.1 Neshan benchmark v4: route casing + confident reroute + route-aware midpoint + natural Persian start
+trigger 2026-08-22 RahYar 0.14.1 Neshan benchmark v4 + keep screen awake while navigation activity is foreground
