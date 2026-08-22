@@ -1,1 +1,1 @@
-trigger 2026-08-22 RahYar 0.14.1 navigation screen v3: compact weather + single ETA + stable dock + readable speed + clean puck
+trigger 2026-08-22 RahYar 0.14.1 navigation screen v3 compile-fixed build
