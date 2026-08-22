@@ -1,1 +1,1 @@
-trigger 2026-08-22 RahYar 0.14.1 operational pin + maneuver + trip story + ETA build
+trigger 2026-08-22 RahYar 0.14.1 operational pin + maneuver + trip story + ETA compile-fix build
