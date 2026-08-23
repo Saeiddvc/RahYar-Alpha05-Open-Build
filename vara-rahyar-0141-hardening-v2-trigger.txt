@@ -1,1 +1,1 @@
-trigger 2026-08-23 RahYar 0.14.1 field-test build: Neshan benchmark v4 + keep screen awake + confirmed reroute + route-aware midpoint + natural Persian voice
+trigger 2026-08-23 RahYar 0.14.1 field-test rebuild #2: resilient keep screen awake + Neshan benchmark v4 + confirmed reroute + route-aware midpoint + natural Persian voice
