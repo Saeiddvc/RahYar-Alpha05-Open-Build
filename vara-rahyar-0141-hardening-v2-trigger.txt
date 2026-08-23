@@ -1,1 +1,1 @@
-trigger 2026-08-22 RahYar 0.14.1 Neshan benchmark v4 + keep screen awake while navigation activity is foreground
+trigger 2026-08-23 RahYar 0.14.1 field-test build: Neshan benchmark v4 + keep screen awake + confirmed reroute + route-aware midpoint + natural Persian voice
