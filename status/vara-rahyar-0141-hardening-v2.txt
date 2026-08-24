@@ -1,6 +1,6 @@
-run_id=32689305610
+run_id=32689552948
 status=failure
 size_bytes=0
 artifact_name=Vara-RahYar-Navigation-0.14.1-ARM64-HARDENED-V2
-source_commit=2fc85042b84cfbedc78e1c1f76a689c12b5deaa2
-updated_at=2026-08-24T04:16:55Z
+source_commit=9a22c21d8fef9b528b438848d46975440016a40b
+updated_at=2026-08-24T04:21:55Z
