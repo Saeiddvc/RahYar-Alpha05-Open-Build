@@ -1,1 +1,1 @@
-trigger 2026-08-24 RahYar 0.14.1 mid-route truth v5: routed detour metrics + orange waypoint leg + turquoise primary leg + no false reject + keep screen awake
+trigger 2026-08-24 RahYar 0.14.1 mid-route truth v5 rebuild: actual routed detour + orange waypoint leg + turquoise primary + resilient font fallback + keep screen awake
