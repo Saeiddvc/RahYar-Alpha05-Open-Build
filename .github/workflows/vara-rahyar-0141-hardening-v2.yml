@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 env:
   SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
@@ -38,6 +39,8 @@ jobs:
 
       - name: Generate hardened 0.14.1 source
         working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python tools/stage_rahyar_0140_embedded_tts.py
@@ -78,10 +81,25 @@ jobs:
           python tools/apply_rahyar_0141_voice_preview_test_hook.py
           python tools/apply_rahyar_0141_settings_hotfix.py
 
-          curl -fL --retry 3 --connect-timeout 15 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' -o app/src/main/assets/fonts/iransans_fanum_regular.ttf
-          curl -fL --retry 3 --connect-timeout 15 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' -o app/src/main/assets/fonts/iransans_fanum_medium.ttf
-          curl -fL --retry 3 --connect-timeout 15 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' -o app/src/main/assets/fonts/iransans_fanum_bold.ttf
-          for f in app/src/main/assets/fonts/iransans_fanum_regular.ttf app/src/main/assets/fonts/iransans_fanum_medium.ttf app/src/main/assets/fonts/iransans_fanum_bold.ttf; do
+          FONT_DIR=app/src/main/assets/fonts
+          mkdir -p "$FONT_DIR"
+          FONT_OK=1
+          curl -fL --retry 1 --connect-timeout 12 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29.ttf' -o "$FONT_DIR/iransans_fanum_regular.ttf" || FONT_OK=0
+          curl -fL --retry 1 --connect-timeout 12 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Medium.ttf' -o "$FONT_DIR/iransans_fanum_medium.ttf" || FONT_OK=0
+          curl -fL --retry 1 --connect-timeout 12 'https://professor.masoudkargar.ir/assets/font/IRANSans4/Farsi_numerals/IRANSans%28FaNum%29_Bold.ttf' -o "$FONT_DIR/iransans_fanum_bold.ttf" || FONT_OK=0
+          if [ "$FONT_OK" -ne 1 ]; then
+            echo 'Primary font host unavailable; restoring validated fonts from last-known-good RahYar artifact.'
+            rm -rf /tmp/rahyar-prev /tmp/rahyar-prev.zip
+            gh api "/repos/${{ github.repository }}/actions/artifacts/9486947280/zip" > /tmp/rahyar-prev.zip
+            mkdir -p /tmp/rahyar-prev
+            unzip -q /tmp/rahyar-prev.zip -d /tmp/rahyar-prev
+            PREV_APK=$(find /tmp/rahyar-prev -type f -name '*.apk' | head -1)
+            test -n "$PREV_APK"
+            unzip -p "$PREV_APK" assets/fonts/iransans_fanum_regular.ttf > "$FONT_DIR/iransans_fanum_regular.ttf"
+            unzip -p "$PREV_APK" assets/fonts/iransans_fanum_medium.ttf > "$FONT_DIR/iransans_fanum_medium.ttf"
+            unzip -p "$PREV_APK" assets/fonts/iransans_fanum_bold.ttf > "$FONT_DIR/iransans_fanum_bold.ttf"
+          fi
+          for f in "$FONT_DIR/iransans_fanum_regular.ttf" "$FONT_DIR/iransans_fanum_medium.ttf" "$FONT_DIR/iransans_fanum_bold.ttf"; do
             test "$(stat -c%s "$f")" -gt 90000
             fc-scan --format '%{family}\n' "$f" | grep -qi 'IRANSans'
           done
@@ -100,6 +118,8 @@ jobs:
           grep -q 'PASS RAHYAR_VOICE_PREWARM' app/src/main/java/ir/rahyar/app/RahYarEmbeddedVoiceEngine.kt
           grep -q 'routeViaStop' app/src/main/java/ir/rahyar/app/OpenNavCore.java
           grep -q 'waypointActive' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'MIDROUTE_TRUTH_V5' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'Color.rgb(255,138,52)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'RahYarUiTheme.dark' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           ! grep -q 'Vara RahYar Navigation' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
 
