@@ -1,1 +1,1 @@
-trigger 2026-08-25 RahYar 0.14.1 field v7 build #2: auto resilient reroute + non-blocking off-route controls + native fa-IR TTS + nearby fuel truth + static cameras bumps road features + compile anchor fix
+trigger 2026-08-25 RahYar 0.14.1 field v7 build #3: auto resilient reroute + non-blocking off-route controls + isolated prewarmed native fa-IR TTS + nearby fuel truth + static cameras bumps road features
