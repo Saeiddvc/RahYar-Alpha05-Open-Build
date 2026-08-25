@@ -1,1 +1,1 @@
-trigger 2026-08-25 RahYar 0.14.1 field v6 build #2: local off-route + contextual companion + compact compass + primed voice compile-fixed + mid-route truth + keep screen awake
+trigger 2026-08-25 RahYar 0.14.1 field v7: automatic resilient reroute + non-blocking off-route controls + fa-IR native TTS + nearby fuel truth + static cameras bumps road features
