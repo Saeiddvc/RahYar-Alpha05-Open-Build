@@ -1,1 +1,1 @@
-trigger 2026-08-24 RahYar 0.14.1 mid-route truth v5 build #4: actual three-point metrics + orange mid-route + turquoise primary + final compile gate + keep screen awake
+trigger 2026-08-25 RahYar 0.14.1 field v6: accurate local off-route + offline notice + contextual companion + compact compass + primed voice + mid-route truth + keep screen awake
