@@ -1,0 +1,43 @@
+name: Publish RahYar 0.14.1 Field V7 Release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'publish-rahyar-v7-release-trigger.txt'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download successful Field V7 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api /repos/Saeiddvc/RahYar-Alpha05-Open-Build/actions/artifacts/9574956093/zip > /tmp/rahyar-v7.zip
+          mkdir -p /tmp/rahyar-v7
+          unzip -q /tmp/rahyar-v7.zip -d /tmp/rahyar-v7
+          APK=$(find /tmp/rahyar-v7 -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" ./RahYar-0.14.1-Field-V7.apk
+          sha256sum RahYar-0.14.1-Field-V7.apk > RahYar-0.14.1-Field-V7.apk.sha256
+          ls -lh RahYar-0.14.1-Field-V7.apk
+
+      - name: Create or update public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='rahyar-0.14.1-field-v7'
+          NOTES='Field V7: automatic resilient rerouting after route departure; off-route UI no longer blocks End/controls; dual routing-provider failover; nearby POI truth including fuel stations under 300m; dual Overpass failover; static OSM speed-camera, traffic-calming/speed-bump and road-condition markers; isolated prewarmed native fa-IR system voice when available with embedded fallback; truthful orange mid-route leg; keep-screen-on.'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'RahYar 0.14.1 Field V7' --notes "$NOTES"
+          fi
+          gh release upload "$TAG" RahYar-0.14.1-Field-V7.apk RahYar-0.14.1-Field-V7.apk.sha256 --clobber
