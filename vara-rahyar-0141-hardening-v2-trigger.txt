@@ -1,1 +1,1 @@
-trigger 2026-08-25 RahYar 0.14.1 field v7 build #3: auto resilient reroute + non-blocking off-route controls + isolated prewarmed native fa-IR TTS + nearby fuel truth + static cameras bumps road features
+trigger 2026-08-26 RahYar 0.14.1 field v8: precise alley origin + LHD/RHD cockpit + physical speed/destination placement + fast current-point reroute + readable alerts + hands-free RahYar wake + nearest fuel truth + maxspeed/static cameras bumps + PiP call continuity + purple midpoint + Android Auto path
