@@ -1,6 +1,6 @@
-run_id=32946182764
-status=failure
-size_bytes=0
+run_id=32946450421
+status=success
+size_bytes=279693520
 artifact_name=RahYar-0.14.1-Field-V9
-source_commit=727653012c5e60dc3f8743ae56d538b6d87c9365
-updated_at=2026-08-26T08:09:40Z
+source_commit=bb4c61401a10f291024502872654f71ce91a9ece
+updated_at=2026-08-26T08:12:45Z
