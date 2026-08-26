@@ -119,7 +119,11 @@ jobs:
           grep -q 'routeViaStop' app/src/main/java/ir/rahyar/app/OpenNavCore.java
           grep -q 'waypointActive' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           grep -q 'MIDROUTE_TRUTH_V5' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
-          grep -q 'Color.rgb(255,138,52)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'Color.rgb(124,77,255)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'PASS DRIVER_COCKPIT_V8' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'startWakeListeningV8' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'radiuses=80;unlimited' app/src/main/java/ir/rahyar/app/OpenNavCore.java
+          grep -q 'supportsPictureInPicture="true"' app/src/main/AndroidManifest.xml
           grep -q 'RahYarUiTheme.dark' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
           ! grep -q 'Vara RahYar Navigation' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
 
