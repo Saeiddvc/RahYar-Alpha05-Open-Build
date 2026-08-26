@@ -1,0 +1,43 @@
+name: Publish RahYar 0.14.1 Field V9 Release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'publish-rahyar-v9-release-trigger.txt'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download successful Field V9 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api /repos/Saeiddvc/RahYar-Alpha05-Open-Build/actions/artifacts/9598460896/zip > /tmp/rahyar-v9.zip
+          mkdir -p /tmp/rahyar-v9
+          unzip -q /tmp/rahyar-v9.zip -d /tmp/rahyar-v9
+          APK=$(find /tmp/rahyar-v9 -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" ./RahYar-0.14.1-Field-V9.apk
+          sha256sum RahYar-0.14.1-Field-V9.apk > RahYar-0.14.1-Field-V9.apk.sha256
+          ls -lh RahYar-0.14.1-Field-V9.apk
+
+      - name: Create or update public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='rahyar-0.14.1-field-v9'
+          NOTES='Field V9: stricter alley/current-position route origin with distant-snap rejection; LHD/RHD driver cockpit with Iran/LHD default, speed HUD on driver-safe opposite screen side and destination card mirrored; arrival time, remaining distance, remaining duration and End control grouped; native map compass disabled during navigation; faster current-point reroute with high-confidence origin validation; larger high-contrast off-route messages; nearest fuel/POI ranking strongly prefers genuinely nearby on-route candidates; speed-limit HUD uses neutral/amber/orange/red thresholds; purple waypoint leg retained; Picture-in-Picture hardened with Android 12+ auto-enter plus legacy fallback; hands-free RahYar wake commands, static OSM road context, keep-screen-on and existing Android Auto service path retained.'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'RahYar 0.14.1 Field V9' --notes "$NOTES"
+          fi
+          gh release upload "$TAG" RahYar-0.14.1-Field-V9.apk RahYar-0.14.1-Field-V9.apk.sha256 --clobber
