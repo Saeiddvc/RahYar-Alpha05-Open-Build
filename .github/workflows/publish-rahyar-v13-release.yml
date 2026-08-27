@@ -1,0 +1,40 @@
+name: Publish RahYar 0.14.1 Field V13 Release
+
+on:
+  push:
+    paths:
+      - 'publish-rahyar-v13-release-trigger.txt'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download successful Field V13 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api /repos/Saeiddvc/RahYar-Alpha05-Open-Build/actions/artifacts/9665499926/zip > /tmp/rahyar-v13.zip
+          mkdir -p /tmp/rahyar-v13
+          unzip -q /tmp/rahyar-v13.zip -d /tmp/rahyar-v13
+          APK=$(find /tmp/rahyar-v13 -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" ./RahYar-0.14.1-Field-V13.apk
+          sha256sum RahYar-0.14.1-Field-V13.apk > RahYar-0.14.1-Field-V13.apk.sha256
+          ls -lh RahYar-0.14.1-Field-V13.apk
+      - name: Create or update public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='rahyar-0.14.1-field-v13'
+          NOTES='Field V13 route-flow recovery: selecting a search/nearby destination closes the result sheet immediately; route preview is shown as soon as routing succeeds; destination weather is non-blocking enrichment and can no longer freeze route creation; stale route responses are discarded; route errors return to search with an explicit retryable message. Includes V12 runtime location hotfix and V11 driver cockpit baseline. Voice accent remains separate open quality work.'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'RahYar 0.14.1 Field V13' --notes "$NOTES"
+          fi
+          gh release upload "$TAG" RahYar-0.14.1-Field-V13.apk RahYar-0.14.1-Field-V13.apk.sha256 --clobber
