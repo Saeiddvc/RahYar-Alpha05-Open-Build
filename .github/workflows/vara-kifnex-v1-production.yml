@@ -1,4 +1,4 @@
-name: Vara KifNex Smart Wallet 1.0.0 Production Safety
+name: Vara KifNex Smart Wallet 1.0.1 Production Safety
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
 
 env:
   SOURCE_REF: vara-kifnex-smart-wallet-v1-production
-  PROD_APK: Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.apk
-  PROD_AAB: Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.aab
-  VALIDATION_APK: Vara-KifNex-Smart-Wallet-1.0.0-OPS-VALIDATION.apk
+  PROD_APK: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk
+  PROD_AAB: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab
+  VALIDATION_APK: Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.apk
 
 jobs:
   build:
@@ -72,9 +72,10 @@ jobs:
           python3 patch_alpha281_sms_e2e.py
           python3 patch_vara_kifnex_v1.py
           python3 patch_vara_kifnex_prod.py
+          python3 patch_vara_kifnex_prod_p0_101.py
 
-          grep -q "versionCode 100100" app/build.gradle
-          grep -q "versionName '1.0.0'" app/build.gradle
+          grep -q "versionCode 100101" app/build.gradle
+          grep -q "versionName '1.0.1'" app/build.gradle
           grep -q 'android:label="Vara KifNex Smart Wallet"' app/src/main/AndroidManifest.xml
           grep -q 'RECEIVE_SMS' app/src/main/AndroidManifest.xml
           ! grep -q 'READ_SMS' app/src/main/AndroidManifest.xml
@@ -88,6 +89,11 @@ jobs:
           ! grep -q 'kifnexAlpha2026' app/build.gradle
           ! grep -q 'kifnex-alpha-test.keystore' app/build.gradle
           ! grep -q 'signingConfigs.alphaTest' app/build.gradle
+          grep -q 'android:usesCleartextTraffic="false"' app/src/main/AndroidManifest.xml
+          grep -q 'android:name=".VaraKifNexApp"' app/src/main/AndroidManifest.xml
+          ! grep -q 'android.permission.USE_BIOMETRIC' app/src/main/AndroidManifest.xml
+          test ! -e kifnex-alpha-test-key.pem
+          test ! -e kifnex-alpha-test.keystore.b64
 
       - name: Deterministic domain tests
         working-directory: source/kifnex-preview
@@ -118,15 +124,15 @@ jobs:
           test -f app/build/outputs/bundle/release/app-release.aab
           cp app/build/outputs/apk/release/app-release-unsigned.apk "$PROD_APK"
           cp app/build/outputs/bundle/release/app-release.aab "$PROD_AAB"
-          sha256sum "$PROD_APK" > Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.apk.sha256
-          sha256sum "$PROD_AAB" > Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.aab.sha256
+          sha256sum "$PROD_APK" > Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk.sha256
+          sha256sum "$PROD_AAB" > Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab.sha256
 
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
           "$AAPT" dump badging "$PROD_APK" > vara-kifnex-prod-badging.txt
           "$AAPT" dump permissions "$PROD_APK" > vara-kifnex-prod-permissions.txt
           grep -q "package: name='ir.kifnex.app'" vara-kifnex-prod-badging.txt
-          grep -q "versionCode='100100'" vara-kifnex-prod-badging.txt
-          grep -q "versionName='1.0.0'" vara-kifnex-prod-badging.txt
+          grep -q "versionCode='100101'" vara-kifnex-prod-badging.txt
+          grep -q "versionName='1.0.1'" vara-kifnex-prod-badging.txt
           grep -q "application-label:'Vara KifNex Smart Wallet'" vara-kifnex-prod-badging.txt
           ! grep -q 'application-debuggable' vara-kifnex-prod-badging.txt
           grep -q 'android.permission.RECEIVE_SMS' vara-kifnex-prod-permissions.txt
@@ -137,8 +143,7 @@ jobs:
           unzip -p "$PROD_APK" classes.dex | strings > vara-kifnex-prod-dex-strings.txt
           ! grep -q 'kifnex_test_registered' vara-kifnex-prod-dex-strings.txt
           ! grep -q 'kifnex_test_bank_sample' vara-kifnex-prod-dex-strings.txt
-          ! grep -q '^123456$' vara-kifnex-prod-dex-strings.txt
-
+          ! grep -q '^123456
       - name: Produce isolated E2E validation signature
         working-directory: source/kifnex-preview
         run: |
@@ -158,7 +163,136 @@ jobs:
             --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
             --out "$VALIDATION_APK" /tmp/vara-kifnex-prod-aligned.apk
           "$APKSIGNER" verify --print-certs "$VALIDATION_APK" > vara-kifnex-prod-validation-cert.txt
-          sha256sum "$VALIDATION_APK" > Vara-KifNex-Smart-Wallet-1.0.0-OPS-VALIDATION.sha256
+          sha256sum "$VALIDATION_APK" > Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.sha256
+          rm -f /tmp/vara-kifnex-ops-validation.jks /tmp/vara-kifnex-prod-aligned.apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Android 15 production-safe SMS E2E
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source/kifnex-preview
+          script: APK="$VALIDATION_APK" bash smoke_vara_kifnex_prod.sh && bash smoke_p0_storage_check.sh
+
+      - name: Create production handoff manifest
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          cat > Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-MANIFEST.txt <<EOF
+          product=Vara KifNex Smart Wallet
+          version=1.0.1
+          version_code=100101
+          package=ir.kifnex.app
+          build_type=release
+          debuggable=false
+          production_apk_signing=UNSIGNED_REQUIRES_ORGANIZATION_KEY
+          production_aab_signing=UNSIGNED_REQUIRES_ORGANIZATION_UPLOAD_KEY
+          validation_signature=EPHEMERAL_CI_ONLY_NOT_FOR_DEPLOYMENT
+          fixed_otp=absent
+          hidden_test_entry=absent
+          local_fake_money_movement=disabled_fail_closed
+          direct_sms_e2e=pass
+          legacy_sensitive_profile_migration=purge
+          shadow_ledger_at_rest=AES_256_GCM_ANDROID_KEYSTORE
+          cleartext_network=false
+          raw_pin_persistence=absent
+          demo_financial_state=absent
+          biometric_claim=disabled_until_real_auth_gate
+          read_sms=absent
+          raw_sms_logging=absent
+          real_otp_backend=NOT_CONNECTED
+          real_payment_switch_backend=NOT_CONNECTED
+          go_live_status=REQUIRES_ORGANIZATION_SIGNING_AND_REAL_BACKEND_INTEGRATION
+          EOF
+
+      - name: Upload production diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-DIAGNOSTICS
+          path: |
+            source/kifnex-preview/vara-kifnex-prod-*.txt
+            source/kifnex-preview/vara-kifnex-prod-*.xml
+            source/kifnex-preview/vara-kifnex-prod-*.png
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-Production-Safe.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload production handoff package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-HANDOFF
+          path: |
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-MANIFEST.txt
+            source/kifnex-preview/vara-kifnex-prod-badging.txt
+            source/kifnex-preview/vara-kifnex-prod-permissions.txt
+            source/kifnex-preview/vara-kifnex-prod-validation-cert.txt
+            source/kifnex-preview/vara-kifnex-prod-e2e.txt
+            source/kifnex-preview/vara-kifnex-p0-storage-pass.txt
+            source/kifnex-preview/vara-kifnex-p0-shadow-storage.xml
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-Production-Safe.png
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish production status
+        if: always()
+        working-directory: buildrepo
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -e
+          git config user.name 'Vara KifNex Production CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase || true
+          printf 'status=%s\nrun_id=%s\nsource_ref=%s\nproduct=%s\nversion=1.0.1\n' \
+            "$JOB_STATUS" "$GITHUB_RUN_ID" "$SOURCE_REF" 'Vara KifNex Smart Wallet' \
+            > vara-kifnex-prod-status.txt
+          git add -- vara-kifnex-prod-status.txt
+          git commit -m 'Publish Vara KifNex production status' || true
+          git push || true
+ vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'seedTestProfile' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'seedDemoTransactionsIfNeeded' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'balances_seeded' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'tx_seeded' vara-kifnex-prod-dex-strings.txt
+          ! grep -q '^2580
+      - name: Produce isolated E2E validation signature
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          PASS=$(openssl rand -hex 20)
+          keytool -genkeypair -noprompt \
+            -keystore /tmp/vara-kifnex-ops-validation.jks \
+            -storepass "$PASS" -keypass "$PASS" -alias validation \
+            -keyalg RSA -keysize 3072 -validity 7 \
+            -dname 'CN=Vara KifNex Operations Validation,OU=CI,O=Vara,C=IR'
+          ZIPALIGN=$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$ZIPALIGN" -f -p 4 "$PROD_APK" /tmp/vara-kifnex-prod-aligned.apk
+          "$APKSIGNER" sign \
+            --ks /tmp/vara-kifnex-ops-validation.jks \
+            --ks-key-alias validation \
+            --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --out "$VALIDATION_APK" /tmp/vara-kifnex-prod-aligned.apk
+          "$APKSIGNER" verify --print-certs "$VALIDATION_APK" > vara-kifnex-prod-validation-cert.txt
+          sha256sum "$VALIDATION_APK" > Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.sha256
           rm -f /tmp/vara-kifnex-ops-validation.jks /tmp/vara-kifnex-prod-aligned.apk
 
       - name: Enable KVM
@@ -183,10 +317,10 @@ jobs:
         working-directory: source/kifnex-preview
         run: |
           set -euo pipefail
-          cat > Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-MANIFEST.txt <<EOF
+          cat > Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-MANIFEST.txt <<EOF
           product=Vara KifNex Smart Wallet
-          version=1.0.0
-          version_code=100100
+          version=1.0.1
+          version_code=100101
           package=ir.kifnex.app
           build_type=release
           debuggable=false
@@ -208,12 +342,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-DIAGNOSTICS
+          name: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-DIAGNOSTICS
           path: |
             source/kifnex-preview/vara-kifnex-prod-*.txt
             source/kifnex-preview/vara-kifnex-prod-*.xml
             source/kifnex-preview/vara-kifnex-prod-*.png
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-Production-Safe.png
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-Production-Safe.png
           if-no-files-found: warn
           retention-days: 14
 
@@ -221,20 +355,20 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-HANDOFF
+          name: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-HANDOFF
           path: |
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.apk
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.aab
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.apk.sha256
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-UNSIGNED.aab.sha256
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-OPS-VALIDATION.apk
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-OPS-VALIDATION.sha256
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-PRODUCTION-MANIFEST.txt
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-MANIFEST.txt
             source/kifnex-preview/vara-kifnex-prod-badging.txt
             source/kifnex-preview/vara-kifnex-prod-permissions.txt
             source/kifnex-preview/vara-kifnex-prod-validation-cert.txt
             source/kifnex-preview/vara-kifnex-prod-e2e.txt
-            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.0-Production-Safe.png
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-Production-Safe.png
           if-no-files-found: error
           retention-days: 14
 
@@ -248,7 +382,128 @@ jobs:
           git config user.name 'Vara KifNex Production CI'
           git config user.email 'actions@users.noreply.github.com'
           git pull --rebase || true
-          printf 'status=%s\nrun_id=%s\nsource_ref=%s\nproduct=%s\nversion=1.0.0\n' \
+          printf 'status=%s\nrun_id=%s\nsource_ref=%s\nproduct=%s\nversion=1.0.1\n' \
+            "$JOB_STATUS" "$GITHUB_RUN_ID" "$SOURCE_REF" 'Vara KifNex Smart Wallet' \
+            > vara-kifnex-prod-status.txt
+          git add -- vara-kifnex-prod-status.txt
+          git commit -m 'Publish Vara KifNex production status' || true
+          git push || true
+ vara-kifnex-prod-dex-strings.txt
+          ! grep -q '09120000000' vara-kifnex-prod-dex-strings.txt
+          ! grep -q '0010000000' vara-kifnex-prod-dex-strings.txt
+          grep -q 'AndroidKeyStore' vara-kifnex-prod-dex-strings.txt
+          grep -q 'vara_kifnex_shadow_ledger_v1' vara-kifnex-prod-dex-strings.txt
+
+      - name: Produce isolated E2E validation signature
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          PASS=$(openssl rand -hex 20)
+          keytool -genkeypair -noprompt \
+            -keystore /tmp/vara-kifnex-ops-validation.jks \
+            -storepass "$PASS" -keypass "$PASS" -alias validation \
+            -keyalg RSA -keysize 3072 -validity 7 \
+            -dname 'CN=Vara KifNex Operations Validation,OU=CI,O=Vara,C=IR'
+          ZIPALIGN=$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$ZIPALIGN" -f -p 4 "$PROD_APK" /tmp/vara-kifnex-prod-aligned.apk
+          "$APKSIGNER" sign \
+            --ks /tmp/vara-kifnex-ops-validation.jks \
+            --ks-key-alias validation \
+            --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --out "$VALIDATION_APK" /tmp/vara-kifnex-prod-aligned.apk
+          "$APKSIGNER" verify --print-certs "$VALIDATION_APK" > vara-kifnex-prod-validation-cert.txt
+          sha256sum "$VALIDATION_APK" > Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.sha256
+          rm -f /tmp/vara-kifnex-ops-validation.jks /tmp/vara-kifnex-prod-aligned.apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Android 15 production-safe SMS E2E
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: source/kifnex-preview
+          script: APK="$VALIDATION_APK" bash smoke_vara_kifnex_prod.sh
+
+      - name: Create production handoff manifest
+        working-directory: source/kifnex-preview
+        run: |
+          set -euo pipefail
+          cat > Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-MANIFEST.txt <<EOF
+          product=Vara KifNex Smart Wallet
+          version=1.0.1
+          version_code=100101
+          package=ir.kifnex.app
+          build_type=release
+          debuggable=false
+          production_apk_signing=UNSIGNED_REQUIRES_ORGANIZATION_KEY
+          production_aab_signing=UNSIGNED_REQUIRES_ORGANIZATION_UPLOAD_KEY
+          validation_signature=EPHEMERAL_CI_ONLY_NOT_FOR_DEPLOYMENT
+          fixed_otp=absent
+          hidden_test_entry=absent
+          local_fake_money_movement=disabled_fail_closed
+          direct_sms_e2e=pass
+          read_sms=absent
+          raw_sms_logging=absent
+          real_otp_backend=NOT_CONNECTED
+          real_payment_switch_backend=NOT_CONNECTED
+          go_live_status=REQUIRES_ORGANIZATION_SIGNING_AND_REAL_BACKEND_INTEGRATION
+          EOF
+
+      - name: Upload production diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-DIAGNOSTICS
+          path: |
+            source/kifnex-preview/vara-kifnex-prod-*.txt
+            source/kifnex-preview/vara-kifnex-prod-*.xml
+            source/kifnex-preview/vara-kifnex-prod-*.png
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-Production-Safe.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload production handoff package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-HANDOFF
+          path: |
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.apk.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-UNSIGNED.aab.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.apk
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-OPS-VALIDATION.sha256
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-PRODUCTION-MANIFEST.txt
+            source/kifnex-preview/vara-kifnex-prod-badging.txt
+            source/kifnex-preview/vara-kifnex-prod-permissions.txt
+            source/kifnex-preview/vara-kifnex-prod-validation-cert.txt
+            source/kifnex-preview/vara-kifnex-prod-e2e.txt
+            source/kifnex-preview/Vara-KifNex-Smart-Wallet-1.0.1-Production-Safe.png
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish production status
+        if: always()
+        working-directory: buildrepo
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -e
+          git config user.name 'Vara KifNex Production CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase || true
+          printf 'status=%s\nrun_id=%s\nsource_ref=%s\nproduct=%s\nversion=1.0.1\n' \
             "$JOB_STATUS" "$GITHUB_RUN_ID" "$SOURCE_REF" 'Vara KifNex Smart Wallet' \
             > vara-kifnex-prod-status.txt
           git add -- vara-kifnex-prod-status.txt
