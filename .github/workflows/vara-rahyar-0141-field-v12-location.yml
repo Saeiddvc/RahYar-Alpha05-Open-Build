@@ -1,0 +1,127 @@
+name: Vara RahYar Navigation 0.14.1 Field V12 Location
+
+on:
+  push:
+    paths:
+      - 'vara-rahyar-0141-field-v12-location-trigger.txt'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  SOURCE_REPO: Saeiddvc/SaeidNavigator-Android
+  SOURCE_REF: feature/rahyar-field-v12-location-hotfix
+  PRODUCT_APK: RahYar-0.14.1-Field-V12.apk
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          path: source
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Build Field V12
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python tools/stage_rahyar_0140_embedded_tts.py
+          python tools/stage_rahyar_0141_multivoice.py
+          python tools/apply_rahyar_neshan_parity.py
+          python tools/apply_rahyar_brand_runtime.py
+          python tools/apply_rahyar_icon_polish.py
+          python tools/apply_rahyar_search_waypoint_stability.py
+          gradle prepareRahYarSources --stacktrace
+          python tools/apply_rahyar_navigation_motion.py
+          python tools/apply_rahyar_field_stability_0131.py
+          python tools/apply_rahyar_readability_stability_0132.py
+          python tools/apply_rahyar_0133_uxfixes.py
+          python tools/apply_rahyar_0133_layer_state.py
+          python tools/apply_rahyar_0133_validation_hook.py
+          python tools/apply_rahyar_0134_traffic_font.py
+          python tools/stage_rahyar_0135_ci_typography.py
+          python tools/apply_rahyar_0136_navigation_control.py
+          python tools/apply_rahyar_0136_weather_guard.py
+          python tools/apply_rahyar_0137_closeout_feedback.py
+          python tools/fix_rahyar_0137_feedback_state.py
+          python tools/fix_rahyar_0137_feedback_save_gate.py
+          python tools/apply_rahyar_0138a_surface.py
+          python tools/apply_rahyar_0138b_motion.py
+          python tools/apply_rahyar_0138c_free_drive.py
+          python tools/apply_rahyar_0138d_weather.py
+          python tools/apply_rahyar_0138e_gates.py
+          python tools/apply_rahyar_0138f_widget_guard.py
+          python tools/apply_rahyar_0138h_tts_restore.py
+          python tools/apply_rahyar_0139_ui_behavior.py
+          python tools/apply_rahyar_0140_embedded_tts.py
+          python tools/apply_rahyar_0141_camera_theme.py
+          python tools/apply_rahyar_0141_waypoint_weather.py
+          python tools/apply_rahyar_0141_multivoice.py
+          python tools/fix_rahyar_0141_voice_personas.py
+          python tools/fix_rahyar_0141_voice_icon.py
+          python tools/fix_rahyar_0141_voice_service_lifetime.py
+          python tools/apply_rahyar_0141_voice_preview_test_hook.py
+          python tools/apply_rahyar_0141_settings_hotfix.py
+
+          FONT_DIR=app/src/main/assets/fonts
+          mkdir -p "$FONT_DIR"
+          rm -rf /tmp/rahyar-prev /tmp/rahyar-prev.zip
+          gh api "/repos/${{ github.repository }}/actions/artifacts/9632382547/zip" > /tmp/rahyar-prev.zip
+          mkdir -p /tmp/rahyar-prev
+          unzip -q /tmp/rahyar-prev.zip -d /tmp/rahyar-prev
+          PREV_APK=$(find /tmp/rahyar-prev -type f -name '*.apk' | head -1)
+          unzip -p "$PREV_APK" assets/fonts/iransans_fanum_regular.ttf > "$FONT_DIR/iransans_fanum_regular.ttf"
+          unzip -p "$PREV_APK" assets/fonts/iransans_fanum_medium.ttf > "$FONT_DIR/iransans_fanum_medium.ttf"
+          unzip -p "$PREV_APK" assets/fonts/iransans_fanum_bold.ttf > "$FONT_DIR/iransans_fanum_bold.ttf"
+          for f in "$FONT_DIR/iransans_fanum_regular.ttf" "$FONT_DIR/iransans_fanum_medium.ttf" "$FONT_DIR/iransans_fanum_bold.ttf"; do
+            test "$(stat -c%s "$f")" -gt 90000
+          done
+
+          python tools/apply_rahyar_0141_runtime_closeout.py
+          python tools/apply_vara_rahyar_0141_ui_closeout.py
+          python tools/apply_vara_rahyar_0141_product_hardening_v2.py
+          python tools/fix_vara_rahyar_0141_hardening_compile.py
+          rm -rf app/src/main/assets/rahyar_tts/vits-piper-fa_IR-amir-medium
+
+          python tools/fix_rahyar_0141_field_v11_experience.py
+          python tools/fix_rahyar_0141_field_v12_location.py
+          grep -q 'PASS FIELD_V12_LOCATION_RUNTIME' <(python tools/fix_rahyar_0141_field_v12_location.py 2>/dev/null || true) || true
+          grep -q 'main.postDelayed(this::ensureLocationPermission,250)' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'if(!simulation){locationStarted=false;ensureLocationPermission();}' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+          grep -q 'private boolean hasLocationPermission()' app/src/main/java/ir/rahyar/app/RahYarV3Activity.java
+
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle.kts')
+          s=p.read_text()
+          marker='defaultConfig {'
+          if 'abiFilters += listOf("arm64-v8a")' not in s:
+              s=s.replace(marker,marker+'\n        ndk { abiFilters += listOf("arm64-v8a") }',1)
+          p.write_text(s)
+          PY
+          gradle assembleDebug -x prepareRahYarSources --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk "$PRODUCT_APK"
+          sha256sum "$PRODUCT_APK" > "$PRODUCT_APK.sha256"
+          ls -lh "$PRODUCT_APK"
+      - name: Upload Field V12 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-0.14.1-Field-V12
+          path: |
+            source/RahYar-0.14.1-Field-V12.apk
+            source/RahYar-0.14.1-Field-V12.apk.sha256
+          retention-days: 14
