@@ -1,0 +1,41 @@
+name: Publish RahYar 0.14.1 Field V10 Release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'publish-rahyar-v10-release-trigger.txt'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download successful Field V10 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api /repos/Saeiddvc/RahYar-Alpha05-Open-Build/actions/artifacts/9632382547/zip > /tmp/rahyar-v10.zip
+          mkdir -p /tmp/rahyar-v10
+          unzip -q /tmp/rahyar-v10.zip -d /tmp/rahyar-v10
+          APK=$(find /tmp/rahyar-v10 -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" ./RahYar-0.14.1-Field-V10.apk
+          sha256sum RahYar-0.14.1-Field-V10.apk > RahYar-0.14.1-Field-V10.apk.sha256
+          ls -lh RahYar-0.14.1-Field-V10.apk
+      - name: Create or update public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='rahyar-0.14.1-field-v10'
+          NOTES='Field V10: navigation voice forced through embedded Persian pipeline instead of variable system TTS; faster speech tuning and reduced silence; road-sign style speed-limit indicator with white face, red ring and black digits; current-speed warning kept separate; typed waypoint marker including fuel-station symbol; lower cockpit tightened to recover map area; V9 precise alley origin, fast current-point reroute, LHD/RHD cockpit, readable off-route strip, nearest POI logic, PiP, hands-free wake, purple midpoint route and Android Auto service path retained.'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'RahYar 0.14.1 Field V10' --notes "$NOTES"
+          fi
+          gh release upload "$TAG" RahYar-0.14.1-Field-V10.apk RahYar-0.14.1-Field-V10.apk.sha256 --clobber || true
