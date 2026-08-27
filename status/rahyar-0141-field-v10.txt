@@ -1,0 +1,6 @@
+run_id=33036971141
+status=success
+size_bytes=279693520
+artifact_name=RahYar-0.14.1-Field-V10
+source_commit=ef085d7ce9cafd45a932d1349733d7ff70974177
+updated_at=2026-08-27T03:40:23Z
