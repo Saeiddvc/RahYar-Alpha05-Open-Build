@@ -143,7 +143,17 @@ jobs:
           unzip -p "$PROD_APK" classes.dex | strings > vara-kifnex-prod-dex-strings.txt
           ! grep -q 'kifnex_test_registered' vara-kifnex-prod-dex-strings.txt
           ! grep -q 'kifnex_test_bank_sample' vara-kifnex-prod-dex-strings.txt
-          ! grep -q '^123456
+          ! grep -q '^123456\\$' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'seedTestProfile' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'seedDemoTransactionsIfNeeded' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'balances_seeded' vara-kifnex-prod-dex-strings.txt
+          ! grep -q 'tx_seeded' vara-kifnex-prod-dex-strings.txt
+          ! grep -q '^2580\\$' vara-kifnex-prod-dex-strings.txt
+          ! grep -q '09120000000' vara-kifnex-prod-dex-strings.txt
+          ! grep -q '0010000000' vara-kifnex-prod-dex-strings.txt
+          grep -q 'AndroidKeyStore' vara-kifnex-prod-dex-strings.txt
+          grep -q 'vara_kifnex_shadow_ledger_v1' vara-kifnex-prod-dex-strings.txt
+
       - name: Produce isolated E2E validation signature
         working-directory: source/kifnex-preview
         run: |
