@@ -1,1 +1,1 @@
-rebuild 2026-08-29 route preview + semantic routes + traffic overview + weather + minimap + start navigation
+rebuild 2026-08-29 settings + theme + language + speed unit + offline maps + android auto + about
