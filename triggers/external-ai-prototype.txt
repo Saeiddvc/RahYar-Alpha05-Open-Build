@@ -1,1 +1,1 @@
-rebuild 2026-08-29 settings + theme + fonts + buildconfig fix
+rebuild 2026-08-29 integrated maplibre + location + repositories + datastore
