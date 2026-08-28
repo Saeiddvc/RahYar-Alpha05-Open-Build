@@ -34,6 +34,20 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Reconstruct and stage IRANSans fonts
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/reconstruct_iransans_fanum_chunks.py
+          mkdir -p external_ai/Rahyar/app/src/main/res/font
+          cp app/src/main/assets/fonts/iransans_fanum_regular.ttf external_ai/Rahyar/app/src/main/res/font/iransans_regular.ttf
+          cp app/src/main/assets/fonts/iransans_fanum_medium.ttf external_ai/Rahyar/app/src/main/res/font/iransans_medium.ttf
+          cp app/src/main/assets/fonts/iransans_fanum_bold.ttf external_ai/Rahyar/app/src/main/res/font/iransans_bold.ttf
+          test -s external_ai/Rahyar/app/src/main/res/font/iransans_regular.ttf
+          test -s external_ai/Rahyar/app/src/main/res/font/iransans_medium.ttf
+          test -s external_ai/Rahyar/app/src/main/res/font/iransans_bold.ttf
+
       - name: Build debug APK
         id: gradle_build
         working-directory: source/external_ai/Rahyar
@@ -43,17 +57,14 @@ jobs:
           gradle --no-daemon :app:assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/RahYar-External-AI-build.log"
           code=${PIPESTATUS[0]}
           echo "$code" > "$GITHUB_WORKSPACE/build.exit"
-          exit 0
+          exit $code
 
       - name: Verify APK
         id: verify
         shell: bash
         run: |
           APK="source/external_ai/Rahyar/app/build/outputs/apk/debug/app-debug.apk"
-          if [ ! -f "$APK" ]; then
-            echo "APK was not produced" | tee -a RahYar-External-AI-build.log
-            exit 1
-          fi
+          test -f "$APK"
           sha256sum "$APK" | tee RahYar-External-AI-Prototype.sha256
           cp "$APK" RahYar-External-AI-Prototype.apk
 
