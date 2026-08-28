@@ -35,17 +35,40 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build debug APK
+        id: gradle_build
         working-directory: source/external_ai/Rahyar
-        run: gradle --no-daemon :app:assembleDebug
+        shell: bash
+        run: |
+          set +e
+          gradle --no-daemon :app:assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/RahYar-External-AI-build.log"
+          code=${PIPESTATUS[0]}
+          echo "$code" > "$GITHUB_WORKSPACE/build.exit"
+          exit 0
 
       - name: Verify APK
+        id: verify
+        shell: bash
         run: |
           APK="source/external_ai/Rahyar/app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$APK"
+          if [ ! -f "$APK" ]; then
+            echo "APK was not produced" | tee -a RahYar-External-AI-build.log
+            exit 1
+          fi
           sha256sum "$APK" | tee RahYar-External-AI-Prototype.sha256
           cp "$APK" RahYar-External-AI-Prototype.apk
 
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-External-AI-Diagnostics
+          path: |
+            RahYar-External-AI-build.log
+            build.exit
+          if-no-files-found: warn
+
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: RahYar-External-AI-Prototype
