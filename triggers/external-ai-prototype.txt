@@ -1,1 +1,1 @@
-rebuild 2026-08-28 after JVM target alignment
+rebuild 2026-08-28 themed HomeScreen + RahyarCard + IRANSans
