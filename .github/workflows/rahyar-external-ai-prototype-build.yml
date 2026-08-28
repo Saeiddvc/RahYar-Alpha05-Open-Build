@@ -34,39 +34,31 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Reconstruct and stage IRANSans fonts
-        working-directory: source
+      - name: Stage approved IRANSans fonts into res/font
         shell: bash
         run: |
-          set +e
-          {
-            python3 tools/reconstruct_iransans_fanum_chunks.py
-            code=$?
-            if [ "$code" -eq 0 ]; then
-              mkdir -p external_ai/Rahyar/app/src/main/res/font
-              cp app/src/main/assets/fonts/iransans_fanum_regular.ttf external_ai/Rahyar/app/src/main/res/font/iransans_regular.ttf
-              cp app/src/main/assets/fonts/iransans_fanum_medium.ttf external_ai/Rahyar/app/src/main/res/font/iransans_medium.ttf
-              cp app/src/main/assets/fonts/iransans_fanum_bold.ttf external_ai/Rahyar/app/src/main/res/font/iransans_bold.ttf
-              ls -l external_ai/Rahyar/app/src/main/res/font
-            fi
-          } 2>&1 | tee "$GITHUB_WORKSPACE/RahYar-font-stage.log"
-          code=${PIPESTATUS[0]}
-          echo "$code" > "$GITHUB_WORKSPACE/font-stage.exit"
-          exit $code
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            -o /tmp/rahyar-v13.apk \
+            https://github.com/Saeiddvc/RahYar-Alpha05-Open-Build/releases/download/rahyar-0.14.1-field-v13/RahYar-0.14.1-Field-V13.apk
+          FONT_DIR="source/external_ai/Rahyar/app/src/main/res/font"
+          mkdir -p "$FONT_DIR"
+          unzip -p /tmp/rahyar-v13.apk assets/fonts/iransans_fanum_regular.ttf > "$FONT_DIR/iransans_regular.ttf"
+          unzip -p /tmp/rahyar-v13.apk assets/fonts/iransans_fanum_medium.ttf > "$FONT_DIR/iransans_medium.ttf"
+          unzip -p /tmp/rahyar-v13.apk assets/fonts/iransans_fanum_bold.ttf > "$FONT_DIR/iransans_bold.ttf"
+          test -s "$FONT_DIR/iransans_regular.ttf"
+          test -s "$FONT_DIR/iransans_medium.ttf"
+          test -s "$FONT_DIR/iransans_bold.ttf"
+          sha256sum "$FONT_DIR"/*.ttf > RahYar-font-stage.log
 
       - name: Build debug APK
-        id: gradle_build
         working-directory: source/external_ai/Rahyar
         shell: bash
         run: |
-          set +e
+          set -o pipefail
           gradle --no-daemon :app:assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/RahYar-External-AI-build.log"
-          code=${PIPESTATUS[0]}
-          echo "$code" > "$GITHUB_WORKSPACE/build.exit"
-          exit $code
 
       - name: Verify APK
-        id: verify
         shell: bash
         run: |
           APK="source/external_ai/Rahyar/app/build/outputs/apk/debug/app-debug.apk"
@@ -81,9 +73,7 @@ jobs:
           name: RahYar-External-AI-Diagnostics
           path: |
             RahYar-font-stage.log
-            font-stage.exit
             RahYar-External-AI-build.log
-            build.exit
           if-no-files-found: warn
 
       - name: Upload APK
