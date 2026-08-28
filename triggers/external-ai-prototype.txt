@@ -1,1 +1,1 @@
-rebuild 2026-08-28 themed HomeScreen + RahyarCard + IRANSans
+rebuild 2026-08-28 route preview cards + typed traffic + route semantic tokens
