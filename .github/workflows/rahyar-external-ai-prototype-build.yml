@@ -1,0 +1,55 @@
+name: RahYar External AI Prototype Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/rahyar-external-ai-prototype-build.yml'
+      - 'triggers/external-ai-prototype.txt'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout build repository
+        uses: actions/checkout@v4
+
+      - name: Checkout private RahYar source
+        uses: actions/checkout@v4
+        with:
+          repository: Saeiddvc/SaeidNavigator-Android
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          ref: feature/rahyar-field-v14-hmi-report-map
+          path: source
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        working-directory: source/external_ai/Rahyar
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK="source/external_ai/Rahyar/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          sha256sum "$APK" | tee RahYar-External-AI-Prototype.sha256
+          cp "$APK" RahYar-External-AI-Prototype.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-External-AI-Prototype
+          path: |
+            RahYar-External-AI-Prototype.apk
+            RahYar-External-AI-Prototype.sha256
+          if-no-files-found: error
