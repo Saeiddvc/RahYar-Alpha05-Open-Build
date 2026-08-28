@@ -1,1 +1,1 @@
-rebuild 2026-08-29 settings + theme + language + speed unit + offline maps + android auto + about
+rebuild 2026-08-29 settings + theme + fonts + buildconfig fix
