@@ -1,1 +1,1 @@
-rebuild 2026-08-29 field test 1.2.0 retry 2: fix off-route confirmation compile + live route/weather + gps reroute
+rebuild 2026-08-29 field test 1.3.0: destination search + recent destinations + unified confirm flow + observable navigation session + RahYar logo/icon/brand identity
