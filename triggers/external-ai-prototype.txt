@@ -1,1 +1,1 @@
-rebuild 2026-08-29 integrated maplibre + location + repositories + datastore + RahYar IranSans typography contract
+rebuild 2026-08-29 operational test: maplibre + fused location + route/traffic/weather repositories + datastore + RahYar brand kit + IranSans
