@@ -1,1 +1,1 @@
-rebuild 2026-08-29 integrated maplibre11 + location + repositories + datastore
+rebuild 2026-08-29 integrated maplibre11 + location + repositories + datastore + brand palette
