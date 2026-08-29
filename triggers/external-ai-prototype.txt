@@ -1,1 +1,1 @@
-rebuild 2026-08-30 field test 1.5.1: P0 freeze-before-start fix; DirectionsApi forced to Dispatchers.IO and route processing to Dispatchers.Default; preserve map-first confirm -> calculate -> preview -> explicit start pipeline; voice remains truthfully disabled
+rebuild 2026-08-30 field test 1.5.2: explicit Candidate -> Confirm -> Calculate -> Preview -> Explicit Start pipeline; GetRoutesUseCase carries mode+waypoints; cancellable generation-safe RoutePreviewViewModel; IO network + Default processing retained; provider-gated modes and truthful voice state retained
