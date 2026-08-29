@@ -1,1 +1,1 @@
-rebuild 2026-08-29 field test 1.4.1: consolidated NavigationEngine + mode-aware route preview + course-up HUD + RahYar arrow + wake lock/keep-screen-on
+rebuild 2026-08-29 field test 1.4.2: consolidated NavigationEngine + reactive Settings + mode-aware RouteSelection + course-up HUD + keep-screen-on
