@@ -20,7 +20,7 @@ jobs:
         with:
           repository: Saeiddvc/SaeidNavigator-Android
           token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
-          ref: feature/rahyar-field-v14-hmi-report-map
+          ref: feature/rahyar-field-1.4-engine-offline-i18n
           path: source
 
       - name: Set up JDK 17
