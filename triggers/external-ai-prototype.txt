@@ -1,1 +1,1 @@
-rebuild 2026-08-30 field test 1.5.2 attempt 2: route selection compatibility fixed; explicit Candidate -> Confirm -> Calculate -> Preview -> Explicit Start; mode+waypoints use case; cancellable generation-safe preview; IO/Default separation retained
+rebuild 2026-08-30 field test 1.5.3: route preview stabilization, selectable RahYar recommendation/alternatives, full-route camera bounds, compact transport chips, Persian route cards, search dedupe/ranking, active navigation crash hardening
