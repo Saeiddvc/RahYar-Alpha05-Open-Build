@@ -1,1 +1,1 @@
-rebuild 2026-08-30 field test 1.4.6: provider capability gating + map search sheets + compact/expanded route sheet + adaptive route width + full map gestures + truthful disabled voice controls
+rebuild 2026-08-30 field test 1.5.0: MapLibre real map + NavigationEngine + repositories/providers + map-first search/confirm + provider-gated modes + adaptive routes + active navigation controls + truthful voice disabled
