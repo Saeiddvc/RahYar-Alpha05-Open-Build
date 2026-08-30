@@ -1,0 +1,67 @@
+name: Export RahYar Run 38 Source
+
+on:
+  push:
+    paths:
+      - '.github/workflows/rahyar-run38-source-export.yml'
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Run 38 source commit
+        uses: actions/checkout@v4
+        with:
+          repository: Saeiddvc/SaeidNavigator-Android
+          token: ${{ secrets.RAHYAR_SOURCE_TOKEN }}
+          ref: d8c49b69636f42d34ba632f440ef628b703785ea
+          path: source
+
+      - name: Package exact Run 38 project source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="source/external_ai/Rahyar"
+          OUT="RahYar-Run38-Source"
+          test -d "$SRC/app/src"
+          test -f "$SRC/app/src/main/AndroidManifest.xml"
+          test -f "$SRC/app/build.gradle.kts"
+          test -f "$SRC/build.gradle.kts"
+          test -f "$SRC/settings.gradle.kts"
+
+          mkdir -p "$OUT"
+          cp -a "$SRC"/. "$OUT"/
+
+          # Remove generated/local-only material. Fonts are staged by CI and are not redistributed here.
+          rm -rf "$OUT/.gradle" "$OUT/.idea"
+          find "$OUT" -type d -name build -prune -exec rm -rf {} +
+          find "$OUT" -type f \( -name '*.ttf' -o -name '*.otf' \) -delete
+          rm -f "$OUT/local.properties"
+
+          cat > "$OUT/RUN38_SOURCE_INFO.txt" <<'EOF'
+          RahYar Run 38 source export
+          Run ID: 33301330125
+          Run number: 38
+          Build title: Build RahYar 1.5.4 Field Test
+          Source repository: Saeiddvc/SaeidNavigator-Android
+          Source commit used by Run 38: d8c49b69636f42d34ba632f440ef628b703785ea
+          Project path built by CI: external_ai/Rahyar
+          Note: font binary files are intentionally excluded from this source export.
+          EOF
+
+          zip -r -9 RahYar-Run38-Source-1.5.4-Field-Test.zip "$OUT"
+          sha256sum RahYar-Run38-Source-1.5.4-Field-Test.zip > RahYar-Run38-Source-1.5.4-Field-Test.sha256
+
+          unzip -l RahYar-Run38-Source-1.5.4-Field-Test.zip | grep -q 'RahYar-Run38-Source/app/src/main/AndroidManifest.xml'
+          unzip -l RahYar-Run38-Source-1.5.4-Field-Test.zip | grep -q 'RahYar-Run38-Source/app/build.gradle.kts'
+          unzip -l RahYar-Run38-Source-1.5.4-Field-Test.zip | grep -q 'RahYar-Run38-Source/settings.gradle.kts'
+          unzip -l RahYar-Run38-Source-1.5.4-Field-Test.zip | grep -q '\.kt$'
+
+      - name: Upload Run 38 source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: RahYar-Run38-Source-1.5.4-Field-Test
+          path: |
+            RahYar-Run38-Source-1.5.4-Field-Test.zip
+            RahYar-Run38-Source-1.5.4-Field-Test.sha256
+          if-no-files-found: error
