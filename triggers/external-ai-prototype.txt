@@ -1,1 +1,1 @@
-rebuild 2026-08-30 10:26 +03:30 field test 1.5.3: all approved route-preview, route-selection, full-route bounds, Persian cards, search ranking, provider capability and crash-hardening changes
+rebuild 2026-08-30 11:45 +03:30 field test 1.5.3: route overview, map route selection, long-press precise destination, waypoints, weather/traffic context, compact maneuver HUD and TTS wiring
